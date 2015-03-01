@@ -59,8 +59,7 @@ host_triplet = @host@
 @WISPR_FALSE@am__append_2 = gweb/giognutls.h gweb/gionotls.c
 @DATAFILES_TRUE@@VPN_TRUE@am__append_3 = vpn/connman-vpn-dbus.conf
 @DATAFILES_TRUE@@SYSTEMD_TRUE@@VPN_TRUE@am__append_4 = vpn/connman-vpn.service
-noinst_PROGRAMS = $(am__EXEEXT_1) unit/test-pbkdf2-sha1$(EXEEXT) \
-	unit/test-prf-sha1$(EXEEXT) unit/test-ippool$(EXEEXT) \
+noinst_PROGRAMS = $(am__EXEEXT_1) unit/test-ippool$(EXEEXT) \
 	$(am__EXEEXT_2) $(am__EXEEXT_3)
 sbin_PROGRAMS = src/connmand$(EXEEXT) $(am__EXEEXT_4)
 @VPN_TRUE@am__append_5 = vpn/connman-vpnd
@@ -149,8 +148,7 @@ DIST_COMMON = README $(am__configure_deps) $(dist_man_MANS) \
 @NEARD_TRUE@am__append_74 = neard
 @NEARD_TRUE@am__append_75 = plugins/neard.c
 @CLIENT_TRUE@am__append_76 = client/connmanctl
-TESTS = unit/test-pbkdf2-sha1$(EXEEXT) unit/test-prf-sha1$(EXEEXT) \
-	unit/test-ippool$(EXEEXT)
+TESTS = unit/test-ippool$(EXEEXT)
 @WISPR_TRUE@am__append_77 = tools/wispr
 @TOOLS_TRUE@am__append_78 = tools/supplicant-test \
 @TOOLS_TRUE@			tools/dhcp-test tools/dhcp-server-test \
@@ -638,14 +636,6 @@ am_unit_test_ippool_OBJECTS = src/log.$(OBJEXT) src/dbus.$(OBJEXT) \
 	unit/test-ippool.$(OBJEXT)
 unit_test_ippool_OBJECTS = $(am_unit_test_ippool_OBJECTS)
 unit_test_ippool_DEPENDENCIES = gdbus/libgdbus-internal.la
-am_unit_test_pbkdf2_sha1_OBJECTS = unit/test-pbkdf2-sha1.$(OBJEXT) \
-	src/shared/sha1.$(OBJEXT)
-unit_test_pbkdf2_sha1_OBJECTS = $(am_unit_test_pbkdf2_sha1_OBJECTS)
-unit_test_pbkdf2_sha1_DEPENDENCIES =
-am_unit_test_prf_sha1_OBJECTS = unit/test-prf-sha1.$(OBJEXT) \
-	src/shared/sha1.$(OBJEXT)
-unit_test_prf_sha1_OBJECTS = $(am_unit_test_prf_sha1_OBJECTS)
-unit_test_prf_sha1_DEPENDENCIES =
 am__vpn_connman_vpnd_SOURCES_DIST = vpn/plugins/openconnect.c \
 	vpn/plugins/openvpn.c vpn/plugins/vpnc.c vpn/plugins/l2tp.c \
 	vpn/plugins/pptp.c vpn/plugins/vpn.c vpn/plugins/vpn.h \
@@ -774,8 +764,7 @@ SOURCES = $(gdbus_libgdbus_internal_la_SOURCES) \
 	tools/stats-tool.c $(tools_supplicant_test_SOURCES) \
 	tools/tap-test.c $(tools_web_test_SOURCES) \
 	$(tools_wispr_SOURCES) $(tools_wpad_test_SOURCES) \
-	$(unit_test_ippool_SOURCES) $(unit_test_pbkdf2_sha1_SOURCES) \
-	$(unit_test_prf_sha1_SOURCES) $(vpn_connman_vpnd_SOURCES)
+	$(unit_test_ippool_SOURCES) $(vpn_connman_vpnd_SOURCES)
 DIST_SOURCES = $(gdbus_libgdbus_internal_la_SOURCES) \
 	plugins/hh2serial-gps.c plugins/iospm.c \
 	plugins/session_policy_local.c plugins/tist.c \
@@ -802,8 +791,7 @@ DIST_SOURCES = $(gdbus_libgdbus_internal_la_SOURCES) \
 	$(am__tools_web_test_SOURCES_DIST) \
 	$(am__tools_wispr_SOURCES_DIST) \
 	$(am__tools_wpad_test_SOURCES_DIST) \
-	$(unit_test_ippool_SOURCES) $(unit_test_pbkdf2_sha1_SOURCES) \
-	$(unit_test_prf_sha1_SOURCES) \
+	$(unit_test_ippool_SOURCES) \
 	$(am__vpn_connman_vpnd_SOURCES_DIST)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
@@ -1255,14 +1243,6 @@ gsupplicant_sources = gsupplicant/gsupplicant.h gsupplicant/dbus.h \
 @CLIENT_TRUE@client_connmanctl_LDADD = gdbus/libgdbus-internal.la @DBUS_LIBS@ @GLIB_LIBS@ \
 @CLIENT_TRUE@				-lreadline -ldl
 
-unit_test_pbkdf2_sha1_SOURCES = unit/test-pbkdf2-sha1.c \
-				src/shared/sha1.h src/shared/sha1.c
-
-unit_test_pbkdf2_sha1_LDADD = @GLIB_LIBS@
-unit_test_prf_sha1_SOURCES = unit/test-prf-sha1.c \
-				src/shared/sha1.h src/shared/sha1.c
-
-unit_test_prf_sha1_LDADD = @GLIB_LIBS@
 unit_test_ippool_SOURCES = src/log.c src/dbus.c src/error.c \
 					src/ippool.c unit/test-ippool.c
 
@@ -1346,7 +1326,7 @@ DISTCHECK_CONFIGURE_FLAGS = --disable-datafiles \
 DISTCLEANFILES = $(pkgconfig_DATA)
 MAINTAINERCLEANFILES = Makefile.in \
 	aclocal.m4 configure config.h.in config.sub config.guess \
-	ltmain.sh depcomp compile missing install-sh mkinstalldirs
+	ltmain.sh depcomp compile missing install-sh mkinstalldirs test-driver
 
 all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
@@ -2090,18 +2070,6 @@ unit/test-ippool.$(OBJEXT): unit/$(am__dirstamp) \
 unit/test-ippool$(EXEEXT): $(unit_test_ippool_OBJECTS) $(unit_test_ippool_DEPENDENCIES) $(EXTRA_unit_test_ippool_DEPENDENCIES) unit/$(am__dirstamp)
 	@rm -f unit/test-ippool$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(unit_test_ippool_OBJECTS) $(unit_test_ippool_LDADD) $(LIBS)
-unit/test-pbkdf2-sha1.$(OBJEXT): unit/$(am__dirstamp) \
-	unit/$(DEPDIR)/$(am__dirstamp)
-src/shared/sha1.$(OBJEXT): src/shared/$(am__dirstamp) \
-	src/shared/$(DEPDIR)/$(am__dirstamp)
-unit/test-pbkdf2-sha1$(EXEEXT): $(unit_test_pbkdf2_sha1_OBJECTS) $(unit_test_pbkdf2_sha1_DEPENDENCIES) $(EXTRA_unit_test_pbkdf2_sha1_DEPENDENCIES) unit/$(am__dirstamp)
-	@rm -f unit/test-pbkdf2-sha1$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(unit_test_pbkdf2_sha1_OBJECTS) $(unit_test_pbkdf2_sha1_LDADD) $(LIBS)
-unit/test-prf-sha1.$(OBJEXT): unit/$(am__dirstamp) \
-	unit/$(DEPDIR)/$(am__dirstamp)
-unit/test-prf-sha1$(EXEEXT): $(unit_test_prf_sha1_OBJECTS) $(unit_test_prf_sha1_DEPENDENCIES) $(EXTRA_unit_test_prf_sha1_DEPENDENCIES) unit/$(am__dirstamp)
-	@rm -f unit/test-prf-sha1$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(unit_test_prf_sha1_OBJECTS) $(unit_test_prf_sha1_LDADD) $(LIBS)
 vpn/plugins/vpn_connman_vpnd-openconnect.$(OBJEXT):  \
 	vpn/plugins/$(am__dirstamp) \
 	vpn/plugins/$(DEPDIR)/$(am__dirstamp)
@@ -2283,7 +2251,6 @@ mostlyclean-compile:
 	-rm -f src/iptables.$(OBJEXT)
 	-rm -f src/log.$(OBJEXT)
 	-rm -f src/shared/netlink.$(OBJEXT)
-	-rm -f src/shared/sha1.$(OBJEXT)
 	-rm -f src/shared/src_connmand-netlink.$(OBJEXT)
 	-rm -f src/shared/src_connmand-util.$(OBJEXT)
 	-rm -f src/shared/util.$(OBJEXT)
@@ -2377,8 +2344,6 @@ mostlyclean-compile:
 	-rm -f tools/wispr.$(OBJEXT)
 	-rm -f tools/wpad-test.$(OBJEXT)
 	-rm -f unit/test-ippool.$(OBJEXT)
-	-rm -f unit/test-pbkdf2-sha1.$(OBJEXT)
-	-rm -f unit/test-prf-sha1.$(OBJEXT)
 	-rm -f vpn/plugins/vpn_connman_vpnd-l2tp.$(OBJEXT)
 	-rm -f vpn/plugins/vpn_connman_vpnd-openconnect.$(OBJEXT)
 	-rm -f vpn/plugins/vpn_connman_vpnd-openvpn.$(OBJEXT)
@@ -2546,7 +2511,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/vpn_connman_vpnd-storage.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/vpn_connman_vpnd-task.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/shared/$(DEPDIR)/netlink.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/shared/$(DEPDIR)/sha1.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/shared/$(DEPDIR)/src_connmand-netlink.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/shared/$(DEPDIR)/src_connmand-util.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/shared/$(DEPDIR)/util.Po@am__quote@
@@ -2574,8 +2538,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@tools/$(DEPDIR)/wispr.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@tools/$(DEPDIR)/wpad-test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@unit/$(DEPDIR)/test-ippool.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@unit/$(DEPDIR)/test-pbkdf2-sha1.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@unit/$(DEPDIR)/test-prf-sha1.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@vpn/$(DEPDIR)/vpn_connman_vpnd-main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@vpn/$(DEPDIR)/vpn_connman_vpnd-vpn-agent.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@vpn/$(DEPDIR)/vpn_connman_vpnd-vpn-config.Po@am__quote@
