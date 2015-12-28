@@ -89,7 +89,8 @@ host_triplet = @host@
 noinst_PROGRAMS = unit/test-ippool$(EXEEXT) $(am__EXEEXT_2) \
 	$(am__EXEEXT_3)
 bin_PROGRAMS = $(am__EXEEXT_1)
-sbin_PROGRAMS = src/connmand$(EXEEXT) $(am__EXEEXT_4)
+sbin_PROGRAMS = src/connmand$(EXEEXT) \
+	src/connmand-wait-online$(EXEEXT) $(am__EXEEXT_4)
 @VPN_TRUE@am__append_5 = vpn/connman-vpnd
 @VPN_TRUE@am__append_6 = vpn/builtin.h
 script_PROGRAMS = $(am__EXEEXT_5) $(am__EXEEXT_6) $(am__EXEEXT_7)
@@ -97,9 +98,9 @@ DIST_COMMON = $(srcdir)/Makefile.plugins $(srcdir)/Makefile.in \
 	$(srcdir)/Makefile.am $(top_srcdir)/configure \
 	$(am__configure_deps) $(srcdir)/config.h.in \
 	$(top_srcdir)/include/version.h.in $(srcdir)/connman.pc.in \
-	depcomp $(dist_man_MANS) $(include_HEADERS) $(noinst_HEADERS) \
-	test-driver AUTHORS COPYING ChangeLog INSTALL NEWS README TODO \
-	compile config.guess config.sub install-sh missing ltmain.sh
+	depcomp $(include_HEADERS) $(noinst_HEADERS) test-driver \
+	AUTHORS COPYING ChangeLog INSTALL NEWS README TODO compile \
+	config.guess config.sub install-sh missing ltmain.sh
 @LOOPBACK_TRUE@am__append_7 = loopback
 @LOOPBACK_TRUE@am__append_8 = plugins/loopback.c
 @ETHERNET_TRUE@am__append_9 = ethernet
@@ -171,10 +172,9 @@ DIST_COMMON = $(srcdir)/Makefile.plugins $(srcdir)/Makefile.in \
 @NEARD_TRUE@am__append_74 = neard
 @NEARD_TRUE@am__append_75 = plugins/neard.c
 @CLIENT_TRUE@am__append_76 = client/connmanctl
-@CLIENT_TRUE@am__append_77 = doc/connmanctl.1
 TESTS = unit/test-ippool$(EXEEXT)
-@WISPR_TRUE@am__append_78 = tools/wispr
-@TOOLS_TRUE@am__append_79 = tools/supplicant-test \
+@WISPR_TRUE@am__append_77 = tools/wispr
+@TOOLS_TRUE@am__append_78 = tools/supplicant-test \
 @TOOLS_TRUE@			tools/dhcp-test tools/dhcp-server-test \
 @TOOLS_TRUE@			tools/addr-test tools/web-test tools/resolv-test \
 @TOOLS_TRUE@			tools/dbus-test tools/polkit-test \
@@ -183,12 +183,12 @@ TESTS = unit/test-ippool$(EXEEXT)
 @TOOLS_TRUE@			tools/session-test tools/iptables-unit \
 @TOOLS_TRUE@			tools/dnsproxy-test tools/netlink-test
 
+@SELINUX_TRUE@@VPN_TRUE@am__append_79 = connman-task.pp
 @SELINUX_TRUE@@VPN_TRUE@am__append_80 = connman-task.pp
-@SELINUX_TRUE@@VPN_TRUE@am__append_81 = connman-task.pp
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/acinclude.m4 \
-	$(top_srcdir)/configure.ac
+am__aclocal_m4_deps = $(top_srcdir)/m4/configmake.m4 \
+	$(top_srcdir)/acinclude.m4 $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
@@ -230,9 +230,10 @@ am__installdirs = "$(DESTDIR)$(plugindir)" "$(DESTDIR)$(scriptdir)" \
 	"$(DESTDIR)$(testdir)" "$(DESTDIR)$(man1dir)" \
 	"$(DESTDIR)$(man5dir)" "$(DESTDIR)$(man8dir)" \
 	"$(DESTDIR)$(dbusconfdir)" "$(DESTDIR)$(dbusservicedir)" \
-	"$(DESTDIR)$(pkgconfigdir)" "$(DESTDIR)$(policydir)" \
-	"$(DESTDIR)$(scriptdir)" "$(DESTDIR)$(systemdunitdir)" \
-	"$(DESTDIR)$(includedir)" "$(DESTDIR)$(includedir)"
+	"$(DESTDIR)$(tmpfilesdir)" "$(DESTDIR)$(pkgconfigdir)" \
+	"$(DESTDIR)$(policydir)" "$(DESTDIR)$(scriptdir)" \
+	"$(DESTDIR)$(systemdunitdir)" "$(DESTDIR)$(includedir)" \
+	"$(DESTDIR)$(includedir)"
 LTLIBRARIES = $(noinst_LTLIBRARIES) $(plugin_LTLIBRARIES) \
 	$(script_LTLIBRARIES) $(vpn_plugin_LTLIBRARIES)
 gdbus_libgdbus_internal_la_LIBADD =
@@ -532,6 +533,11 @@ src_connmand_DEPENDENCIES = gdbus/libgdbus-internal.la \
 src_connmand_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(src_connmand_CFLAGS) \
 	$(CFLAGS) $(src_connmand_LDFLAGS) $(LDFLAGS) -o $@
+am_src_connmand_wait_online_OBJECTS =  \
+	src/connmand-wait-online.$(OBJEXT)
+src_connmand_wait_online_OBJECTS =  \
+	$(am_src_connmand_wait_online_OBJECTS)
+src_connmand_wait_online_DEPENDENCIES = gdbus/libgdbus-internal.la
 tools_addr_test_SOURCES = tools/addr-test.c
 tools_addr_test_OBJECTS = tools/addr-test.$(OBJEXT)
 tools_addr_test_LDADD = $(LDADD)
@@ -788,16 +794,17 @@ SOURCES = $(gdbus_libgdbus_internal_la_SOURCES) \
 	$(vpn_plugins_pptp_la_SOURCES) $(vpn_plugins_vpnc_la_SOURCES) \
 	$(client_connmanctl_SOURCES) scripts/openconnect-script.c \
 	scripts/openvpn-script.c $(src_connmand_SOURCES) \
-	tools/addr-test.c $(tools_dbus_test_SOURCES) \
-	$(tools_dhcp_server_test_SOURCES) $(tools_dhcp_test_SOURCES) \
-	$(tools_dnsproxy_test_SOURCES) $(tools_iptables_test_SOURCES) \
-	$(tools_iptables_unit_SOURCES) $(tools_netlink_test_SOURCES) \
-	tools/polkit-test.c tools/private-network-test.c \
-	$(tools_resolv_test_SOURCES) $(tools_session_test_SOURCES) \
-	tools/stats-tool.c $(tools_supplicant_test_SOURCES) \
-	tools/tap-test.c $(tools_web_test_SOURCES) \
-	$(tools_wispr_SOURCES) $(tools_wpad_test_SOURCES) \
-	$(unit_test_ippool_SOURCES) $(vpn_connman_vpnd_SOURCES)
+	$(src_connmand_wait_online_SOURCES) tools/addr-test.c \
+	$(tools_dbus_test_SOURCES) $(tools_dhcp_server_test_SOURCES) \
+	$(tools_dhcp_test_SOURCES) $(tools_dnsproxy_test_SOURCES) \
+	$(tools_iptables_test_SOURCES) $(tools_iptables_unit_SOURCES) \
+	$(tools_netlink_test_SOURCES) tools/polkit-test.c \
+	tools/private-network-test.c $(tools_resolv_test_SOURCES) \
+	$(tools_session_test_SOURCES) tools/stats-tool.c \
+	$(tools_supplicant_test_SOURCES) tools/tap-test.c \
+	$(tools_web_test_SOURCES) $(tools_wispr_SOURCES) \
+	$(tools_wpad_test_SOURCES) $(unit_test_ippool_SOURCES) \
+	$(vpn_connman_vpnd_SOURCES)
 DIST_SOURCES = $(gdbus_libgdbus_internal_la_SOURCES) \
 	plugins/hh2serial-gps.c plugins/iospm.c \
 	plugins/session_policy_local.c plugins/tist.c \
@@ -809,7 +816,8 @@ DIST_SOURCES = $(gdbus_libgdbus_internal_la_SOURCES) \
 	$(am__vpn_plugins_vpnc_la_SOURCES_DIST) \
 	$(am__client_connmanctl_SOURCES_DIST) \
 	scripts/openconnect-script.c scripts/openvpn-script.c \
-	$(am__src_connmand_SOURCES_DIST) tools/addr-test.c \
+	$(am__src_connmand_SOURCES_DIST) \
+	$(src_connmand_wait_online_SOURCES) tools/addr-test.c \
 	$(am__tools_dbus_test_SOURCES_DIST) \
 	$(am__tools_dhcp_server_test_SOURCES_DIST) \
 	$(am__tools_dhcp_test_SOURCES_DIST) \
@@ -835,9 +843,10 @@ man1dir = $(mandir)/man1
 man5dir = $(mandir)/man5
 man8dir = $(mandir)/man8
 NROFF = nroff
-MANS = $(dist_man_MANS)
-DATA = $(dbusconf_DATA) $(dbusservice_DATA) $(pkgconfig_DATA) \
-	$(policy_DATA) $(script_DATA) $(systemdunit_DATA)
+MANS = $(nodist_man_MANS)
+DATA = $(dbusconf_DATA) $(dbusservice_DATA) $(nodist_tmpfiles_DATA) \
+	$(pkgconfig_DATA) $(policy_DATA) $(script_DATA) \
+	$(systemdunit_DATA)
 HEADERS = $(include_HEADERS) $(nodist_include_HEADERS) \
 	$(noinst_HEADERS)
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) \
@@ -1135,6 +1144,7 @@ SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
+SYSTEMD_TMPFILESDIR = @SYSTEMD_TMPFILESDIR@
 SYSTEMD_UNITDIR = @SYSTEMD_UNITDIR@
 VERSION = @VERSION@
 VPNC = @VPNC@
@@ -1185,6 +1195,7 @@ pdfdir = @pdfdir@
 prefix = @prefix@
 program_transform_name = @program_transform_name@
 psdir = @psdir@
+runstatedir = @runstatedir@
 sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
 srcdir = @srcdir@
@@ -1233,14 +1244,19 @@ shared_sources = src/shared/util.h src/shared/util.c \
 @DATAFILES_TRUE@@VPN_TRUE@dbusservice_DATA = vpn/net.connman.vpn.service
 @DATAFILES_TRUE@@SYSTEMD_TRUE@systemdunitdir = @SYSTEMD_UNITDIR@
 @DATAFILES_TRUE@@SYSTEMD_TRUE@systemdunit_DATA = src/connman.service \
+@DATAFILES_TRUE@@SYSTEMD_TRUE@	src/connman-wait-online.service \
 @DATAFILES_TRUE@@SYSTEMD_TRUE@	$(am__append_4)
+@DATAFILES_TRUE@@SYSTEMD_TRUE@tmpfilesdir = @SYSTEMD_TMPFILESDIR@
+@DATAFILES_TRUE@@SYSTEMD_TRUE@nodist_tmpfiles_DATA = scripts/connman_resolvconf.conf
 service_files_sources = src/connman.service.in src/net.connman.service.in \
 				vpn/connman-vpn.service.in \
-				vpn/net.connman.vpn.service.in
+				vpn/net.connman.vpn.service.in \
+				src/connman-wait-online.service.in
 
 service_files = src/connman.service src/net.connman.service \
 				vpn/connman-vpn.service \
-				vpn/net.connman.vpn.service
+				vpn/net.connman.vpn.service \
+				src/connman-wait-online.service
 
 plugin_LTLIBRARIES = $(am__append_19) $(am__append_59) \
 	$(am__append_68) $(am__append_72)
@@ -1259,7 +1275,10 @@ builtin_sources = $(am__append_8) $(am__append_10) $(am__append_12) \
 builtin_libadd = 
 builtin_cflags = 
 unit_objects = 
-MANUAL_PAGES = $(am__append_77) doc/connman.8 doc/connman.conf.5
+MANUAL_PAGES = doc/connmanctl.1 doc/connman.conf.5 \
+	doc/connman-service.config.5 doc/connman-vpn.conf.5 \
+	doc/connman-vpn-provider.config.5 doc/connman.8 \
+	doc/connman-vpn.8
 src_connmand_SOURCES = $(gdhcp_sources) $(gweb_sources) \
 			$(builtin_sources) $(shared_sources) src/connman.ver \
 			src/main.c src/connman.h src/log.c \
@@ -1285,6 +1304,10 @@ src_connmand_LDADD = gdbus/libgdbus-internal.la $(builtin_libadd) \
 
 src_connmand_LDFLAGS = -Wl,--export-dynamic \
 				-Wl,--version-script=$(srcdir)/src/connman.ver
+
+src_connmand_wait_online_SOURCES = src/connmand-wait-online.c
+src_connmand_wait_online_LDADD = gdbus/libgdbus-internal.la \
+			@GLIB_LIBS@ @DBUS_LIBS@
 
 @VPN_TRUE@vpn_plugin_LTLIBRARIES = $(am__append_30) $(am__append_35) \
 @VPN_TRUE@	$(am__append_40) $(am__append_45) $(am__append_50)
@@ -1316,11 +1339,12 @@ src_connmand_LDFLAGS = -Wl,--export-dynamic \
 @VPN_TRUE@				-Wl,--version-script=$(srcdir)/vpn/vpn.ver
 
 BUILT_SOURCES = $(local_headers) src/builtin.h $(service_files) \
-	scripts/connman $(am__append_6)
+	scripts/connman scripts/connman_resolvconf.conf \
+	$(am__append_6)
 CLEANFILES = src/connman.conf $(BUILT_SOURCES) $(service_files) \
-	$(am__append_81)
-statedir = $(localstatedir)/run/connman
-vpn_statedir = $(localstatedir)/run/connman-vpn
+	$(am__append_80)
+statedir = $(runstatedir)/connman
+vpn_statedir = $(runstatedir)/connman-vpn
 @VPN_TRUE@vpn_plugindir = $(libdir)/connman/plugins-vpn
 plugindir = $(libdir)/connman/plugins
 scriptdir = $(libdir)/connman/scripts
@@ -1372,7 +1396,11 @@ EXTRA_DIST = src/genbuiltin src/connman-dbus.conf \
 	doc/advanced-configuration.txt doc/vpn-config-format.txt \
 	doc/vpn-connection-api.txt doc/vpn-manager-api.txt \
 	doc/vpn-overview.txt doc/session-policy-format.txt \
-	src/main.conf src/eduroam.config $(am__append_80) \
+	doc/connmanctl.1.in doc/connman.conf.5.in \
+	doc/connman-service.config.5.in doc/connman-vpn.conf.5.in \
+	doc/connman-vpn-provider.config.5.in doc/connman.8.in \
+	doc/connman-vpn.8.in src/main.conf src/eduroam.config \
+	scripts/connman_resolvconf.conf.in $(am__append_79) \
 	vpn/connman-task.te
 @VPN_TRUE@vpn_connman_vpnd_CFLAGS = @DBUS_CFLAGS@ @GLIB_CFLAGS@ \
 @VPN_TRUE@				$(builtin_vpn_cflags) \
@@ -1541,7 +1569,7 @@ test_scripts = test/get-state test/list-services test/monitor-services \
 	test/monitor-vpn test/vpn-property
 @TEST_TRUE@testdir = $(pkglibdir)/test
 @TEST_TRUE@test_SCRIPTS = $(test_scripts)
-dist_man_MANS = $(MANUAL_PAGES)
+nodist_man_MANS = $(MANUAL_PAGES)
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = connman.pc
 DISTCHECK_CONFIGURE_FLAGS = --disable-datafiles \
@@ -1561,7 +1589,11 @@ MAINTAINERCLEANFILES = Makefile.in \
 do_subst = $(AM_V_GEN)$(SED) \
 		-e 's,[@]prefix[@],$(prefix),g' \
 		-e 's,[@]sbindir[@],$(sbindir),g' \
-		-e 's,[@]sysconfdir[@],$(sysconfdir),g'
+		-e 's,[@]sysconfdir[@],$(sysconfdir),g' \
+		-e 's,[@]storagedir[@],$(storagedir),g' \
+		-e 's,[@]vpn_storagedir[@],$(vpn_storagedir),g' \
+		-e 's,[@]localstatedir[@],$(localstatedir),g' \
+		-e 's,[@]runstatedir[@],$(runstatedir),g'
 
 all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
@@ -2224,6 +2256,12 @@ src/src_connmand-util.$(OBJEXT): src/$(am__dirstamp) \
 src/connmand$(EXEEXT): $(src_connmand_OBJECTS) $(src_connmand_DEPENDENCIES) $(EXTRA_src_connmand_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/connmand$(EXEEXT)
 	$(AM_V_CCLD)$(src_connmand_LINK) $(src_connmand_OBJECTS) $(src_connmand_LDADD) $(LIBS)
+src/connmand-wait-online.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+
+src/connmand-wait-online$(EXEEXT): $(src_connmand_wait_online_OBJECTS) $(src_connmand_wait_online_DEPENDENCIES) $(EXTRA_src_connmand_wait_online_DEPENDENCIES) src/$(am__dirstamp)
+	@rm -f src/connmand-wait-online$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(src_connmand_wait_online_OBJECTS) $(src_connmand_wait_online_LDADD) $(LIBS)
 tools/$(am__dirstamp):
 	@$(MKDIR_P) tools
 	@: > tools/$(am__dirstamp)
@@ -2582,6 +2620,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@scripts/$(DEPDIR)/libppp-plugin.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@scripts/$(DEPDIR)/openconnect-script.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@scripts/$(DEPDIR)/openvpn-script.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/connmand-wait-online.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/dbus.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/error.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/ippool.Po@am__quote@
@@ -4412,10 +4451,10 @@ clean-libtool:
 
 distclean-libtool:
 	-rm -f libtool config.lt
-install-man1: $(dist_man_MANS)
+install-man1: $(nodist_man_MANS)
 	@$(NORMAL_INSTALL)
 	@list1=''; \
-	list2='$(dist_man_MANS)'; \
+	list2='$(nodist_man_MANS)'; \
 	test -n "$(man1dir)" \
 	  && test -n "`echo $$list1$$list2`" \
 	  || exit 0; \
@@ -4450,15 +4489,15 @@ uninstall-man1:
 	@$(NORMAL_UNINSTALL)
 	@list=''; test -n "$(man1dir)" || exit 0; \
 	files=`{ for i in $$list; do echo "$$i"; done; \
-	l2='$(dist_man_MANS)'; for i in $$l2; do echo "$$i"; done | \
+	l2='$(nodist_man_MANS)'; for i in $$l2; do echo "$$i"; done | \
 	  sed -n '/\.1[a-z]*$$/p'; \
 	} | sed -e 's,.*/,,;h;s,.*\.,,;s,^[^1][0-9a-z]*$$,1,;x' \
 	      -e 's,\.[0-9a-z]*$$,,;$(transform);G;s,\n,.,'`; \
 	dir='$(DESTDIR)$(man1dir)'; $(am__uninstall_files_from_dir)
-install-man5: $(dist_man_MANS)
+install-man5: $(nodist_man_MANS)
 	@$(NORMAL_INSTALL)
 	@list1=''; \
-	list2='$(dist_man_MANS)'; \
+	list2='$(nodist_man_MANS)'; \
 	test -n "$(man5dir)" \
 	  && test -n "`echo $$list1$$list2`" \
 	  || exit 0; \
@@ -4493,15 +4532,15 @@ uninstall-man5:
 	@$(NORMAL_UNINSTALL)
 	@list=''; test -n "$(man5dir)" || exit 0; \
 	files=`{ for i in $$list; do echo "$$i"; done; \
-	l2='$(dist_man_MANS)'; for i in $$l2; do echo "$$i"; done | \
+	l2='$(nodist_man_MANS)'; for i in $$l2; do echo "$$i"; done | \
 	  sed -n '/\.5[a-z]*$$/p'; \
 	} | sed -e 's,.*/,,;h;s,.*\.,,;s,^[^5][0-9a-z]*$$,5,;x' \
 	      -e 's,\.[0-9a-z]*$$,,;$(transform);G;s,\n,.,'`; \
 	dir='$(DESTDIR)$(man5dir)'; $(am__uninstall_files_from_dir)
-install-man8: $(dist_man_MANS)
+install-man8: $(nodist_man_MANS)
 	@$(NORMAL_INSTALL)
 	@list1=''; \
-	list2='$(dist_man_MANS)'; \
+	list2='$(nodist_man_MANS)'; \
 	test -n "$(man8dir)" \
 	  && test -n "`echo $$list1$$list2`" \
 	  || exit 0; \
@@ -4536,7 +4575,7 @@ uninstall-man8:
 	@$(NORMAL_UNINSTALL)
 	@list=''; test -n "$(man8dir)" || exit 0; \
 	files=`{ for i in $$list; do echo "$$i"; done; \
-	l2='$(dist_man_MANS)'; for i in $$l2; do echo "$$i"; done | \
+	l2='$(nodist_man_MANS)'; for i in $$l2; do echo "$$i"; done | \
 	  sed -n '/\.8[a-z]*$$/p'; \
 	} | sed -e 's,.*/,,;h;s,.*\.,,;s,^[^8][0-9a-z]*$$,8,;x' \
 	      -e 's,\.[0-9a-z]*$$,,;$(transform);G;s,\n,.,'`; \
@@ -4583,6 +4622,27 @@ uninstall-dbusserviceDATA:
 	@list='$(dbusservice_DATA)'; test -n "$(dbusservicedir)" || list=; \
 	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
 	dir='$(DESTDIR)$(dbusservicedir)'; $(am__uninstall_files_from_dir)
+install-nodist_tmpfilesDATA: $(nodist_tmpfiles_DATA)
+	@$(NORMAL_INSTALL)
+	@list='$(nodist_tmpfiles_DATA)'; test -n "$(tmpfilesdir)" || list=; \
+	if test -n "$$list"; then \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(tmpfilesdir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(tmpfilesdir)" || exit 1; \
+	fi; \
+	for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  echo "$$d$$p"; \
+	done | $(am__base_list) | \
+	while read files; do \
+	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(tmpfilesdir)'"; \
+	  $(INSTALL_DATA) $$files "$(DESTDIR)$(tmpfilesdir)" || exit $$?; \
+	done
+
+uninstall-nodist_tmpfilesDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(nodist_tmpfiles_DATA)'; test -n "$(tmpfilesdir)" || list=; \
+	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
+	dir='$(DESTDIR)$(tmpfilesdir)'; $(am__uninstall_files_from_dir)
 install-pkgconfigDATA: $(pkgconfig_DATA)
 	@$(NORMAL_INSTALL)
 	@list='$(pkgconfig_DATA)'; test -n "$(pkgconfigdir)" || list=; \
@@ -5102,7 +5162,7 @@ check: $(BUILT_SOURCES)
 all-am: Makefile $(LTLIBRARIES) $(PROGRAMS) $(SCRIPTS) $(MANS) $(DATA) \
 		$(HEADERS) config.h
 installdirs:
-	for dir in "$(DESTDIR)$(plugindir)" "$(DESTDIR)$(scriptdir)" "$(DESTDIR)$(vpn_plugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(scriptdir)" "$(DESTDIR)$(testdir)" "$(DESTDIR)$(man1dir)" "$(DESTDIR)$(man5dir)" "$(DESTDIR)$(man8dir)" "$(DESTDIR)$(dbusconfdir)" "$(DESTDIR)$(dbusservicedir)" "$(DESTDIR)$(pkgconfigdir)" "$(DESTDIR)$(policydir)" "$(DESTDIR)$(scriptdir)" "$(DESTDIR)$(systemdunitdir)" "$(DESTDIR)$(includedir)" "$(DESTDIR)$(includedir)"; do \
+	for dir in "$(DESTDIR)$(plugindir)" "$(DESTDIR)$(scriptdir)" "$(DESTDIR)$(vpn_plugindir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(scriptdir)" "$(DESTDIR)$(testdir)" "$(DESTDIR)$(man1dir)" "$(DESTDIR)$(man5dir)" "$(DESTDIR)$(man8dir)" "$(DESTDIR)$(dbusconfdir)" "$(DESTDIR)$(dbusservicedir)" "$(DESTDIR)$(tmpfilesdir)" "$(DESTDIR)$(pkgconfigdir)" "$(DESTDIR)$(policydir)" "$(DESTDIR)$(scriptdir)" "$(DESTDIR)$(systemdunitdir)" "$(DESTDIR)$(includedir)" "$(DESTDIR)$(includedir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: $(BUILT_SOURCES)
@@ -5198,11 +5258,12 @@ info-am:
 
 install-data-am: install-dbusconfDATA install-dbusserviceDATA \
 	install-includeHEADERS install-man \
-	install-nodist_includeHEADERS install-pkgconfigDATA \
-	install-pluginLTLIBRARIES install-policyDATA \
-	install-scriptDATA install-scriptLTLIBRARIES \
-	install-scriptPROGRAMS install-systemdunitDATA \
-	install-testSCRIPTS install-vpn_pluginLTLIBRARIES
+	install-nodist_includeHEADERS install-nodist_tmpfilesDATA \
+	install-pkgconfigDATA install-pluginLTLIBRARIES \
+	install-policyDATA install-scriptDATA \
+	install-scriptLTLIBRARIES install-scriptPROGRAMS \
+	install-systemdunitDATA install-testSCRIPTS \
+	install-vpn_pluginLTLIBRARIES
 
 install-dvi: install-dvi-am
 
@@ -5253,11 +5314,12 @@ ps-am:
 uninstall-am: uninstall-binPROGRAMS uninstall-dbusconfDATA \
 	uninstall-dbusserviceDATA uninstall-includeHEADERS \
 	uninstall-man uninstall-nodist_includeHEADERS \
-	uninstall-pkgconfigDATA uninstall-pluginLTLIBRARIES \
-	uninstall-policyDATA uninstall-sbinPROGRAMS \
-	uninstall-scriptDATA uninstall-scriptLTLIBRARIES \
-	uninstall-scriptPROGRAMS uninstall-systemdunitDATA \
-	uninstall-testSCRIPTS uninstall-vpn_pluginLTLIBRARIES
+	uninstall-nodist_tmpfilesDATA uninstall-pkgconfigDATA \
+	uninstall-pluginLTLIBRARIES uninstall-policyDATA \
+	uninstall-sbinPROGRAMS uninstall-scriptDATA \
+	uninstall-scriptLTLIBRARIES uninstall-scriptPROGRAMS \
+	uninstall-systemdunitDATA uninstall-testSCRIPTS \
+	uninstall-vpn_pluginLTLIBRARIES
 
 uninstall-man: uninstall-man1 uninstall-man5 uninstall-man8
 
@@ -5280,9 +5342,10 @@ uninstall-man: uninstall-man1 uninstall-man5 uninstall-man8
 	install-html install-html-am install-includeHEADERS \
 	install-info install-info-am install-man install-man1 \
 	install-man5 install-man8 install-nodist_includeHEADERS \
-	install-pdf install-pdf-am install-pkgconfigDATA \
-	install-pluginLTLIBRARIES install-policyDATA install-ps \
-	install-ps-am install-sbinPROGRAMS install-scriptDATA \
+	install-nodist_tmpfilesDATA install-pdf install-pdf-am \
+	install-pkgconfigDATA install-pluginLTLIBRARIES \
+	install-policyDATA install-ps install-ps-am \
+	install-sbinPROGRAMS install-scriptDATA \
 	install-scriptLTLIBRARIES install-scriptPROGRAMS install-strip \
 	install-systemdunitDATA install-testSCRIPTS \
 	install-vpn_pluginLTLIBRARIES installcheck installcheck-am \
@@ -5293,11 +5356,12 @@ uninstall-man: uninstall-man1 uninstall-man5 uninstall-man8
 	uninstall-dbusconfDATA uninstall-dbusserviceDATA \
 	uninstall-includeHEADERS uninstall-man uninstall-man1 \
 	uninstall-man5 uninstall-man8 uninstall-nodist_includeHEADERS \
-	uninstall-pkgconfigDATA uninstall-pluginLTLIBRARIES \
-	uninstall-policyDATA uninstall-sbinPROGRAMS \
-	uninstall-scriptDATA uninstall-scriptLTLIBRARIES \
-	uninstall-scriptPROGRAMS uninstall-systemdunitDATA \
-	uninstall-testSCRIPTS uninstall-vpn_pluginLTLIBRARIES
+	uninstall-nodist_tmpfilesDATA uninstall-pkgconfigDATA \
+	uninstall-pluginLTLIBRARIES uninstall-policyDATA \
+	uninstall-sbinPROGRAMS uninstall-scriptDATA \
+	uninstall-scriptLTLIBRARIES uninstall-scriptPROGRAMS \
+	uninstall-systemdunitDATA uninstall-testSCRIPTS \
+	uninstall-vpn_pluginLTLIBRARIES
 
 
 plugins/net.connman.policy: plugins/polkit.policy
@@ -5325,11 +5389,27 @@ src/connman.conf: src/connman-dbus.conf src/connman-polkit.conf
 @SELINUX_TRUE@connman-task.pp: vpn/connman-task.te
 @SELINUX_TRUE@	make -f /usr/share/selinux/devel/Makefile
 
+%.1 : %.1.in
+	$(AM_V_at)$(MKDIR_P) $(dir $@)
+	$(do_subst) < $< > $@
+
+%.5 : %.5.in
+	$(AM_V_at)$(MKDIR_P) $(dir $@)
+	$(do_subst) < $< > $@
+
+%.8 : %.8.in
+	$(AM_V_at)$(MKDIR_P) $(dir $@)
+	$(do_subst) < $< > $@
+
 %.service: %.service.in Makefile
 	$(AM_V_at)$(MKDIR_P) $(dir $@)
 	$(do_subst) < $< > $@
 
 scripts/connman: scripts/connman.in Makefile
+	$(AM_V_at)$(MKDIR_P) $(dir $@)
+	$(do_subst) < $< > $@
+
+scripts/connman_resolvconf.conf: scripts/connman_resolvconf.conf.in
 	$(AM_V_at)$(MKDIR_P) $(dir $@)
 	$(do_subst) < $< > $@
 
@@ -5342,7 +5422,7 @@ include/connman/%.h: $(abs_top_srcdir)/include/%.h
 	$(AM_V_GEN)$(LN_S) $< $@
 
 clean-local:
-	@$(RM) -rf include/connman
+	@$(RM) -rf include/connman $(MANUAL_PAGES)
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
