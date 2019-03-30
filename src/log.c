@@ -23,7 +23,6 @@
 #include <config.h>
 #endif
 
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <unistd.h>
 #include <stdarg.h>
@@ -31,11 +30,15 @@
 #include <string.h>
 #include <syslog.h>
 #include <dlfcn.h>
+#include <signal.h>
 
 #include "connman.h"
 
 static const char *program_exec;
 static const char *program_path;
+
+/* This makes sure we always have a __debug section. */
+CONNMAN_DEBUG_DEFINE(dummy);
 
 /**
  * connman_info:

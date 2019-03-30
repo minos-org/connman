@@ -39,6 +39,7 @@
 
 #include "gdhcp.h"
 #include "common.h"
+#include "../src/connman.h"
 
 static const DHCPOption client_options[] = {
 	{ OPTION_IP,			0x01 }, /* subnet-mask */
@@ -59,42 +60,6 @@ static const DHCPOption client_options[] = {
 	{ OPTION_STRING,		0xfc }, /* UNOFFICIAL proxy-pac */
 	{ OPTION_UNKNOWN,		0x00 },
 };
-
-#define URANDOM "/dev/urandom"
-static int random_fd = -1;
-
-int dhcp_get_random(uint64_t *val)
-{
-	int r;
-
-	if (random_fd < 0) {
-		random_fd = open(URANDOM, O_RDONLY);
-		if (random_fd < 0) {
-			r = -errno;
-			*val = random();
-
-			return r;
-		}
-	}
-
-	if (read(random_fd, val, sizeof(uint64_t)) < 0) {
-		r = -errno;
-		*val = random();
-
-		return r;
-	}
-
-	return 0;
-}
-
-void dhcp_cleanup_random(void)
-{
-	if (random_fd < 0)
-		return;
-
-	close(random_fd);
-	random_fd = -1;
-}
 
 GDHCPOptionType dhcp_get_code_type(uint8_t code)
 {
@@ -332,8 +297,6 @@ void dhcp_add_option_uint32(struct dhcp_packet *packet, uint8_t code,
 	put_be32(data, option + OPT_DATA);
 
 	dhcp_add_binary_option(packet, option);
-
-	return;
 }
 
 void dhcp_add_option_uint16(struct dhcp_packet *packet, uint8_t code,
@@ -349,8 +312,6 @@ void dhcp_add_option_uint16(struct dhcp_packet *packet, uint8_t code,
 	put_be16(data, option + OPT_DATA);
 
 	dhcp_add_binary_option(packet, option);
-
-	return;
 }
 
 void dhcp_add_option_uint8(struct dhcp_packet *packet, uint8_t code,
@@ -366,8 +327,6 @@ void dhcp_add_option_uint8(struct dhcp_packet *packet, uint8_t code,
 	option[OPT_DATA] = data;
 
 	dhcp_add_binary_option(packet, option);
-
-	return;
 }
 
 void dhcp_init_header(struct dhcp_packet *packet, char type)
@@ -400,7 +359,7 @@ void dhcpv6_init_header(struct dhcpv6_packet *packet, uint8_t type)
 
 	packet->message = type;
 
-	dhcp_get_random(&rand);
+	__connman_util_get_random(&rand);
 	id = rand;
 
 	packet->transaction_id[0] = (id >> 16) & 0xff;

@@ -732,7 +732,7 @@ static void provider_service_changed(struct connman_service *service,
 	vpn_index = __connman_connection_get_vpn_index(service_index);
 
 	DBG("service %p %s state %d index %d/%d", service,
-		__connman_service_get_ident(service),
+		connman_service_get_identifier(service),
 		state, service_index, vpn_index);
 
 	if (vpn_index < 0)
@@ -745,11 +745,9 @@ static void provider_service_changed(struct connman_service *service,
 	DBG("disconnect %p index %d", provider, vpn_index);
 
 	connman_provider_disconnect(provider);
-
-	return;
 }
 
-static struct connman_notifier provider_notifier = {
+static const struct connman_notifier provider_notifier = {
 	.name			= "provider",
 	.offline_mode		= provider_offline_mode,
 	.service_state_changed	= provider_service_changed,

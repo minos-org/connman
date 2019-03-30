@@ -25,7 +25,6 @@
 #include <config.h>
 #endif
 
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
@@ -190,6 +189,40 @@ done:
 	return err;
 }
 
+bool __connman_inet_is_any_addr(const char *address, int family)
+{
+	bool ret = false;
+	struct addrinfo hints;
+	struct addrinfo *result = NULL;
+	struct sockaddr_in6 *in6 = NULL;
+	struct sockaddr_in *in4 = NULL;
+
+	if (!address || !*address)
+		goto out;
+
+	memset(&hints, 0, sizeof(struct addrinfo));
+
+	hints.ai_family = family;
+
+	if (getaddrinfo(address, NULL, &hints, &result))
+		goto out;
+
+	if (result) {
+		if (result->ai_family == AF_INET6) {
+			in6 = (struct sockaddr_in6*)result->ai_addr;
+			ret = IN6_IS_ADDR_UNSPECIFIED(&in6->sin6_addr);
+		} else if (result->ai_family == AF_INET) {
+			in4 = (struct sockaddr_in*)result->ai_addr;
+			ret = in4->sin_addr.s_addr == INADDR_ANY;
+		}
+
+		freeaddrinfo(result);
+	}
+
+out:
+	return ret;
+}
+
 int connman_inet_ifindex(const char *name)
 {
 	struct ifreq ifr;
@@ -328,6 +361,40 @@ done:
 	close(sk);
 
 	return err;
+}
+
+bool connman_inet_is_ifup(int index)
+{
+	int sk;
+	struct ifreq ifr;
+	bool ret = false;
+
+	sk = socket(PF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+	if (sk < 0) {
+		connman_warn("Failed to open socket");
+		return false;
+	}
+
+	memset(&ifr, 0, sizeof(ifr));
+	ifr.ifr_ifindex = index;
+
+	if (ioctl(sk, SIOCGIFNAME, &ifr) < 0) {
+		connman_warn("Failed to get interface name for interface %d", index);
+		goto done;
+	}
+
+	if (ioctl(sk, SIOCGIFFLAGS, &ifr) < 0) {
+		connman_warn("Failed to get interface flags for index %d", index);
+		goto done;
+	}
+
+	if (ifr.ifr_flags & IFF_UP)
+		ret = true;
+
+done:
+	close(sk);
+
+	return ret;
 }
 
 struct in6_ifreq {
@@ -478,7 +545,17 @@ int connman_inet_add_network_route(int index, const char *host,
 
 	memset(&rt, 0, sizeof(rt));
 	rt.rt_flags = RTF_UP;
-	if (gateway)
+
+	/*
+	 * Set RTF_GATEWAY only when gateway is set and the gateway IP address
+	 * is not IPv4 any address (0.0.0.0). If the given gateway IP address is
+	 * any address adding of route will fail when RTF_GATEWAY set. Passing
+	 * gateway as NULL or INADDR_ANY should have the same effect. Setting
+	 * the gateway address later to the struct is not affected by this,
+	 * since given IPv4 any address (0.0.0.0) equals the value set with
+	 * INADDR_ANY.
+	 */
+	if (gateway && !__connman_inet_is_any_addr(gateway, AF_INET))
 		rt.rt_flags |= RTF_GATEWAY;
 	if (!netmask)
 		rt.rt_flags |= RTF_HOST;
@@ -641,10 +718,17 @@ int connman_inet_add_ipv6_network_route(int index, const char *host,
 
 	rt.rtmsg_flags = RTF_UP | RTF_HOST;
 
-	if (gateway) {
+	/*
+	 * Set RTF_GATEWAY only when gateway is set, the gateway IP address is
+	 * not IPv6 any address (e.g., ::) and the address is valid (conversion
+	 * succeeds). If the given gateway IP address is any address then
+	 * adding of route will fail when RTF_GATEWAY set. Passing gateway as
+	 * NULL or IPv6 any address should have the same effect.
+	 */
+
+	if (gateway && !__connman_inet_is_any_addr(gateway, AF_INET6) &&
+		inet_pton(AF_INET6, gateway, &rt.rtmsg_gateway) > 0)
 		rt.rtmsg_flags |= RTF_GATEWAY;
-		inet_pton(AF_INET6, gateway, &rt.rtmsg_gateway);
-	}
 
 	rt.rtmsg_metric = 1;
 	rt.rtmsg_ifindex = index;
@@ -996,7 +1080,7 @@ bool connman_inet_compare_subnet(int index, const char *host)
 		return false;
 
 	if (inet_aton(host, &_host_addr) == 0)
-		return -1;
+		return false;
 	host_addr = _host_addr.s_addr;
 
 	sk = socket(PF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
@@ -2285,6 +2369,7 @@ static gboolean inet_rtnl_event(GIOChannel *chan, GIOCondition cond,
 		return TRUE;
 
 cleanup:
+	rtnl_data->callback(NULL, rtnl_data->user_data);
 	inet_rtnl_cleanup(rtnl_data);
 	return TRUE;
 }
@@ -2437,8 +2522,6 @@ out:
 		data->callback(addr, index, data->user_data);
 
 	g_free(data);
-
-	return;
 }
 
 /*
@@ -2530,9 +2613,10 @@ int connman_inet_check_ipaddress(const char *host)
 	addr = NULL;
 
 	result = getaddrinfo(host, NULL, &hints, &addr);
-	if (result == 0)
+	if (result == 0) {
 		result = addr->ai_family;
-	freeaddrinfo(addr);
+		freeaddrinfo(addr);
+	}
 
 	return result;
 }
@@ -2732,6 +2816,41 @@ int __connman_inet_get_interface_address(int index, int family, void *address)
 out:
 	freeifaddrs(ifaddr);
 	return err;
+}
+
+int __connman_inet_get_interface_mac_address(int index, uint8_t *mac_address)
+{
+	struct ifreq ifr;
+	int sk, err;
+	int ret = -EINVAL;
+
+	sk = socket(PF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+	if (sk < 0) {
+		DBG("Open socket error");
+		return ret;
+	}
+
+	memset(&ifr, 0, sizeof(ifr));
+	ifr.ifr_ifindex = index;
+
+	err = ioctl(sk, SIOCGIFNAME, &ifr);
+	if (err < 0) {
+		DBG("Get interface name error");
+		goto done;
+	}
+
+	err = ioctl(sk, SIOCGIFHWADDR, &ifr);
+	if (err < 0) {
+		DBG("Get MAC address error");
+		goto done;
+	}
+
+	memcpy(mac_address, ifr.ifr_hwaddr.sa_data, ETH_ALEN);
+	ret = 0;
+
+done:
+	close(sk);
+	return ret;
 }
 
 static int iprule_modify(int cmd, int family, uint32_t table_id,
@@ -3230,6 +3349,9 @@ char **__connman_inet_get_pnp_nameservers(const char *pnp_file)
 
 	if (!pnp_file)
 		pnp_file = "/proc/net/pnp";
+
+	if (!g_file_test(pnp_file, G_FILE_TEST_EXISTS))
+		goto out;
 
 	if (!g_file_get_contents(pnp_file, &pnp, NULL, &error)) {
 		connman_error("%s: Cannot read %s %s\n", __func__,

@@ -11,7 +11,8 @@ include_HEADERS = include/log.h include/plugin.h \
 			include/device.h include/network.h include/inet.h \
 			include/storage.h include/provision.h \
 			include/session.h include/ipaddress.h include/agent.h \
-			include/inotify.h include/peer.h include/machine.h
+			include/inotify.h include/peer.h include/machine.h \
+			include/acd.h include/tethering.h
 
 nodist_include_HEADERS = include/version.h
 
@@ -32,8 +33,12 @@ gdbus_libgdbus_internal_la_SOURCES = gdbus/gdbus.h \
 				gdbus/mainloop.c gdbus/watch.c \
 				gdbus/object.c gdbus/client.c gdbus/polkit.c
 
+if BACKTRACE
+backtrace_sources = src/backtrace.c
+endif
+
 gdhcp_sources = gdhcp/gdhcp.h gdhcp/common.h gdhcp/common.c gdhcp/client.c \
-		gdhcp/server.c gdhcp/ipv4ll.h gdhcp/ipv4ll.c gdhcp/unaligned.h
+		gdhcp/server.c gdhcp/unaligned.h
 
 gweb_sources = gweb/gweb.h gweb/gweb.c gweb/gresolv.h gweb/gresolv.c
 
@@ -49,12 +54,9 @@ else
 stats_sources = src/nostats.c
 endif
 
-if BACKTRACE
-backtrace_sources = src/backtrace.c
-endif
-
 shared_sources = src/shared/util.h src/shared/util.c \
-		src/shared/netlink.h src/shared/netlink.c
+		src/shared/netlink.h src/shared/netlink.c \
+		src/shared/arp.h src/shared/arp.c
 
 if DATAFILES
 
@@ -128,7 +130,8 @@ src_connmand_SOURCES = $(gdhcp_sources) $(gweb_sources) $(stats_sources) \
 			src/session.c src/tethering.c src/wpad.c src/wispr.c \
 			src/6to4.c src/ippool.c src/bridge.c src/nat.c \
 			src/ipaddress.c src/inotify.c src/ipv6pd.c src/peer.c \
-			src/peer_service.c src/machine.c src/util.c
+			src/peer_service.c src/machine.c src/util.c \
+			src/acd.c
 
 if INTERNAL_DNS_BACKEND
 src_connmand_SOURCES += src/dnsproxy.c
@@ -305,6 +308,7 @@ client_connmanctl_SOURCES = client/dbus_helpers.h client/dbus_helpers.c \
 			client/input.h client/input.c \
 			client/agent.h client/agent.c \
 			client/peers.h client/peers.c \
+			client/tethering.h client/tethering.c \
 			client/vpnconnections.h client/vpnconnections.c \
 			client/main.c
 
@@ -355,11 +359,13 @@ tools_wpad_test_LDADD = @GLIB_LIBS@ -lresolv
 
 tools_stats_tool_LDADD = @GLIB_LIBS@
 
-tools_dhcp_test_SOURCES = $(gdhcp_sources) tools/dhcp-test.c
-tools_dhcp_test_LDADD = @GLIB_LIBS@
+tools_dhcp_test_SOURCES = $(backtrace_sources) src/log.c src/util.c \
+		 $(gdhcp_sources) src/inet.c tools/dhcp-test.c src/shared/arp.c
+tools_dhcp_test_LDADD = @GLIB_LIBS@ -ldl
 
-tools_dhcp_server_test_SOURCES = $(gdhcp_sources) tools/dhcp-server-test.c
-tools_dhcp_server_test_LDADD = @GLIB_LIBS@
+tools_dhcp_server_test_SOURCES =  $(backtrace_sources) src/log.c src/util.c \
+		$(gdhcp_sources) src/inet.c tools/dhcp-server-test.c src/shared/arp.c
+tools_dhcp_server_test_LDADD = @GLIB_LIBS@ -ldl
 
 tools_dbus_test_SOURCES = tools/dbus-test.c
 tools_dbus_test_LDADD = gdbus/libgdbus-internal.la @GLIB_LIBS@ @DBUS_LIBS@
@@ -375,25 +381,40 @@ tools_session_test_LDADD = gdbus/libgdbus-internal.la \
 				@GLIB_LIBS@ @DBUS_LIBS@ -ldl
 
 if XTABLES
-noinst_PROGRAMS += tools/iptables-test tools/iptables-unit
+noinst_PROGRAMS += tools/iptables-test tools/ip6tables-test tools/iptables-unit \
+		   unit/test-iptables
 
 tools_iptables_test_SOURCES = $(backtrace_sources) src/log.c src/iptables.c \
 				tools/iptables-test.c
 tools_iptables_test_LDADD = @GLIB_LIBS@ @XTABLES_LIBS@ -ldl
 
+tools_ip6tables_test_SOURCES = $(backtrace_sources) src/log.c src/iptables.c \
+				tools/ip6tables-test.c
+tools_ip6tables_test_LDADD = @GLIB_LIBS@ @XTABLES_LIBS@ -ldl
+
 tools_iptables_unit_CFLAGS = @DBUS_CFLAGS@ @GLIB_CFLAGS@ @XTABLES_CFLAGS@ \
-		-DIPTABLES_SAVE=\""${IPTABLES_SAVE}"\"
+		-DIPTABLES_SAVE=\""${IPTABLES_SAVE}"\" \
+		-DIP6TABLES_SAVE=\""${IP6TABLES_SAVE}"\"
 tools_iptables_unit_SOURCES = $(backtrace_sources) src/log.c \
 		src/iptables.c src/firewall-iptables.c src/nat.c \
 		tools/iptables-unit.c
 tools_iptables_unit_LDADD = gdbus/libgdbus-internal.la \
 				@GLIB_LIBS@ @DBUS_LIBS@ @XTABLES_LIBS@ -ldl
+
+TESTS += unit/test-iptables
+
+unit_test_iptables_CFLAGS = $(COVERAGE_OPT) $(AM_CFLAGS) @GLIB_CFLAGS@
+unit_test_iptables_SOURCES = $(backtrace_sources) src/connman.h src/log.c \
+			                                     unit/test-iptables.c src/iptables.c
+unit_test_iptables_LDADD = @GLIB_LIBS@ -ldl
+
 endif
 
 tools_dnsproxy_test_SOURCES = tools/dnsproxy-test.c
 tools_dnsproxy_test_LDADD = @GLIB_LIBS@
 
-tools_netlink_test_SOURCES = $(shared_sources) tools/netlink-test.c
+tools_netlink_test_SOURCES = src/shared/util.c src/shared/netlink.c \
+		tools/netlink-test.c
 tools_netlink_test_LDADD = @GLIB_LIBS@
 
 endif

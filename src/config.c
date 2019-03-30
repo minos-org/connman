@@ -196,7 +196,7 @@ static void unregister_service(gpointer data)
 							list = list->next) {
 		service_id = list->data;
 
-		service = __connman_service_lookup_from_ident(service_id);
+		service = connman_service_lookup_from_identifier(service_id);
 		if (service) {
 			__connman_service_set_immutable(service, false);
 			__connman_service_set_config(service, NULL, NULL);
@@ -1253,7 +1253,7 @@ static int try_provision_service(struct connman_config_service *config,
 	}
 
 	DBG("service %p ident %s", service,
-					__connman_service_get_ident(service));
+				connman_service_get_identifier(service));
 
 	if (config->mac) {
 		struct connman_device *device;
@@ -1356,7 +1356,7 @@ static int try_provision_service(struct connman_config_service *config,
 
 	__connman_service_disconnect(service);
 
-	service_id = __connman_service_get_ident(service);
+	service_id = connman_service_get_identifier(service);
 	config->service_identifiers =
 		g_slist_prepend(config->service_identifiers,
 				g_strdup(service_id));
@@ -1703,7 +1703,6 @@ void connman_config_free_entries(struct connman_config_entry **entries)
 	}
 
 	g_free(entries);
-	return;
 }
 
 bool __connman_config_address_provisioned(const char *address,

@@ -39,6 +39,8 @@
 
 #include "connman.h"
 
+#define CONF_ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]) - 1)
+
 #define DEFAULT_INPUT_REQUEST_TIMEOUT (120 * 1000)
 #define DEFAULT_BROWSER_LAUNCH_TIMEOUT (300 * 1000)
 
@@ -49,6 +51,11 @@ static char *default_auto_connect[] = {
 	"wifi",
 	"ethernet",
 	"cellular",
+	NULL
+};
+
+static char *default_favorite_techs[] = {
+	"ethernet",
 	NULL
 };
 
@@ -66,6 +73,7 @@ static struct {
 	bool bg_scan;
 	char **pref_timeservers;
 	unsigned int *auto_connect;
+	unsigned int *favorite_techs;
 	unsigned int *preferred_techs;
 	unsigned int *always_connected_techs;
 	char **fallback_nameservers;
@@ -81,10 +89,13 @@ static struct {
 	char *vendor_class_id;
 	bool enable_online_check;
 	bool auto_connect_roaming_services;
+	bool acd;
+	bool use_gateways_as_timeservers;
 } connman_settings  = {
 	.bg_scan = true,
 	.pref_timeservers = NULL,
 	.auto_connect = NULL,
+	.favorite_techs = NULL,
 	.preferred_techs = NULL,
 	.always_connected_techs = NULL,
 	.fallback_nameservers = NULL,
@@ -100,11 +111,14 @@ static struct {
 	.vendor_class_id = NULL,
 	.enable_online_check = true,
 	.auto_connect_roaming_services = false,
+	.acd = false,
+	.use_gateways_as_timeservers = false,
 };
 
 #define CONF_BG_SCAN                    "BackgroundScanning"
 #define CONF_PREF_TIMESERVERS           "FallbackTimeservers"
-#define CONF_AUTO_CONNECT               "DefaultAutoConnectTechnologies"
+#define CONF_AUTO_CONNECT_TECHS         "DefaultAutoConnectTechnologies"
+#define CONF_FAVORITE_TECHS             "DefaultFavoriteTechnologies"
 #define CONF_ALWAYS_CONNECTED_TECHS     "AlwaysConnectedTechnologies"
 #define CONF_PREFERRED_TECHS            "PreferredTechnologies"
 #define CONF_FALLBACK_NAMESERVERS       "FallbackNameservers"
@@ -120,11 +134,13 @@ static struct {
 #define CONF_VENDOR_CLASS_ID            "VendorClassID"
 #define CONF_ENABLE_ONLINE_CHECK        "EnableOnlineCheck"
 #define CONF_AUTO_CONNECT_ROAMING_SERVICES "AutoConnectRoamingServices"
+#define CONF_ACD                        "AddressConflictDetection"
+#define CONF_USE_GATEWAYS_AS_TIMESERVERS "UseGatewaysAsTimeservers"
 
 static const char *supported_options[] = {
 	CONF_BG_SCAN,
 	CONF_PREF_TIMESERVERS,
-	CONF_AUTO_CONNECT,
+	CONF_AUTO_CONNECT_TECHS,
 	CONF_ALWAYS_CONNECTED_TECHS,
 	CONF_PREFERRED_TECHS,
 	CONF_FALLBACK_NAMESERVERS,
@@ -140,6 +156,8 @@ static const char *supported_options[] = {
 	CONF_VENDOR_CLASS_ID,
 	CONF_ENABLE_ONLINE_CHECK,
 	CONF_AUTO_CONNECT_ROAMING_SERVICES,
+	CONF_ACD,
+	CONF_USE_GATEWAYS_AS_TIMESERVERS,
 	NULL
 };
 
@@ -268,7 +286,9 @@ static void parse_config(GKeyFile *config)
 
 	if (!config) {
 		connman_settings.auto_connect =
-			parse_service_types(default_auto_connect, 3);
+			parse_service_types(default_auto_connect, CONF_ARRAY_SIZE(default_auto_connect));
+		connman_settings.favorite_techs =
+			parse_service_types(default_favorite_techs, CONF_ARRAY_SIZE(default_favorite_techs));
 		connman_settings.blacklisted_interfaces =
 			g_strdupv(default_blacklist);
 		return;
@@ -291,14 +311,26 @@ static void parse_config(GKeyFile *config)
 	g_clear_error(&error);
 
 	str_list = __connman_config_get_string_list(config, "General",
-			CONF_AUTO_CONNECT, &len, &error);
+			CONF_AUTO_CONNECT_TECHS, &len, &error);
 
 	if (!error)
 		connman_settings.auto_connect =
 			parse_service_types(str_list, len);
 	else
 		connman_settings.auto_connect =
-			parse_service_types(default_auto_connect, 3);
+			parse_service_types(default_auto_connect, CONF_ARRAY_SIZE(default_auto_connect));
+
+	g_clear_error(&error);
+
+	str_list = __connman_config_get_string_list(config, "General",
+			CONF_FAVORITE_TECHS, &len, &error);
+
+	if (!error)
+		connman_settings.favorite_techs =
+			parse_service_types(str_list, len);
+	else
+		connman_settings.favorite_techs =
+			parse_service_types(default_favorite_techs, CONF_ARRAY_SIZE(default_favorite_techs));
 
 	g_strfreev(str_list);
 
@@ -429,6 +461,19 @@ static void parse_config(GKeyFile *config)
 				CONF_AUTO_CONNECT_ROAMING_SERVICES, &error);
 	if (!error)
 		connman_settings.auto_connect_roaming_services = boolean;
+
+	g_clear_error(&error);
+
+	boolean = __connman_config_get_bool(config, "General", CONF_ACD, &error);
+	if (!error)
+		connman_settings.acd = boolean;
+
+	g_clear_error(&error);
+
+	boolean = __connman_config_get_bool(config, "General",
+				CONF_USE_GATEWAYS_AS_TIMESERVERS, &error);
+	if (!error)
+		connman_settings.use_gateways_as_timeservers = boolean;
 
 	g_clear_error(&error);
 }
@@ -580,9 +625,9 @@ static GOptionEntry options[] = {
 				G_OPTION_ARG_CALLBACK, parse_debug,
 				"Specify debug options to enable", "DEBUG" },
 	{ "device", 'i', 0, G_OPTION_ARG_STRING, &option_device,
-			"Specify networking device or interface", "DEV" },
+			"Specify networking devices or interfaces", "DEV,..." },
 	{ "nodevice", 'I', 0, G_OPTION_ARG_STRING, &option_nodevice,
-			"Specify networking interface to ignore", "DEV" },
+			"Specify networking interfaces to ignore", "DEV,..." },
 	{ "plugin", 'p', 0, G_OPTION_ARG_STRING, &option_plugin,
 				"Specify plugins to load", "NAME,..." },
 	{ "noplugin", 'P', 0, G_OPTION_ARG_CALLBACK, &parse_noplugin,
@@ -644,6 +689,12 @@ bool connman_setting_get_bool(const char *key)
 	if (g_str_equal(key, CONF_AUTO_CONNECT_ROAMING_SERVICES))
 		return connman_settings.auto_connect_roaming_services;
 
+	if (g_str_equal(key, CONF_ACD))
+		return connman_settings.acd;
+
+	if (g_str_equal(key, CONF_USE_GATEWAYS_AS_TIMESERVERS))
+		return connman_settings.use_gateways_as_timeservers;
+
 	return false;
 }
 
@@ -666,8 +717,11 @@ char **connman_setting_get_string_list(const char *key)
 
 unsigned int *connman_setting_get_uint_list(const char *key)
 {
-	if (g_str_equal(key, CONF_AUTO_CONNECT))
+	if (g_str_equal(key, CONF_AUTO_CONNECT_TECHS))
 		return connman_settings.auto_connect;
+
+	if (g_str_equal(key, CONF_FAVORITE_TECHS))
+		return connman_settings.favorite_techs;
 
 	if (g_str_equal(key, CONF_PREFERRED_TECHS))
 		return connman_settings.preferred_techs;
@@ -860,6 +914,7 @@ int main(int argc, char *argv[])
 		g_strfreev(connman_settings.pref_timeservers);
 
 	g_free(connman_settings.auto_connect);
+	g_free(connman_settings.favorite_techs);
 	g_free(connman_settings.preferred_techs);
 	g_strfreev(connman_settings.fallback_nameservers);
 	g_strfreev(connman_settings.blacklisted_interfaces);

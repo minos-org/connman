@@ -1,8 +1,11 @@
 /*
  *
- *  IPV4 Local Link library with GLib integration
+ *  Connection Manager
  *
- *  Copyright (C) 2009-2010  Aldebaran Robotics. All rights reserved.
+ *  based on IPv4 Local Link library with GLib integration,
+ *	    Copyright (C) 2009-2010  Aldebaran Robotics. All rights reserved.
+ *
+ *  Copyright (C) 2018  Commend International. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
@@ -12,10 +15,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
 #include <string.h>
@@ -29,41 +28,14 @@
 #include <netpacket/packet.h>
 #include <net/ethernet.h>
 #include <netinet/if_ether.h>
+#include <net/if_arp.h>
 
 #include <arpa/inet.h>
 
-#include <glib.h>
-#include "ipv4ll.h"
-#include "common.h"
+#include "src/shared/arp.h"
+#include "src/connman.h"
 
-/**
- * Return a random link local IP (in host byte order)
- */
-uint32_t ipv4ll_random_ip(void)
-{
-	unsigned tmp;
-	uint64_t rand;
-
-	do {
-		dhcp_get_random(&rand);
-		tmp = rand;
-		tmp = tmp & IN_CLASSB_HOST;
-	} while (tmp > (IN_CLASSB_HOST - 0x0200));
-	return ((LINKLOCAL_ADDR + 0x0100) + tmp);
-}
-
-/**
- * Return a random delay in range of zero to secs*1000
- */
-guint ipv4ll_random_delay_ms(guint secs)
-{
-	uint64_t rand;
-
-	dhcp_get_random(&rand);
-	return rand % (secs * 1000);
-}
-
-int ipv4ll_send_arp_packet(uint8_t* source_eth, uint32_t source_ip,
+int arp_send_packet(uint8_t* source_eth, uint32_t source_ip,
 		    uint32_t target_ip, int ifindex)
 {
 	struct sockaddr_ll dest;
@@ -112,7 +84,7 @@ int ipv4ll_send_arp_packet(uint8_t* source_eth, uint32_t source_ip,
 	return n;
 }
 
-int ipv4ll_arp_socket(int ifindex)
+int arp_socket(int ifindex)
 {
 	int fd;
 	struct sockaddr_ll sock;
@@ -134,4 +106,21 @@ int ipv4ll_arp_socket(int ifindex)
 	}
 
 	return fd;
+}
+
+/**
+ * Return a random link local IP (in host byte order)
+ */
+uint32_t arp_random_ip(void)
+{
+	unsigned tmp;
+
+	do {
+		uint64_t rand;
+		__connman_util_get_random(&rand);
+		tmp = rand;
+		tmp = tmp & IN_CLASSB_HOST;
+	} while (tmp > (IN_CLASSB_HOST - 0x0200));
+
+	return (LINKLOCAL_ADDR + 0x0100) + tmp;
 }

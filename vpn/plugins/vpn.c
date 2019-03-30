@@ -23,7 +23,6 @@
 #include <config.h>
 #endif
 
-#define _GNU_SOURCE
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -308,19 +307,22 @@ static DBusMessage *vpn_notify(struct connman_task *task,
 						     vpn_newlink, provider);
 		err = connman_inet_ifup(index);
 		if (err < 0) {
-			if (err == -EALREADY)
+			if (err == -EALREADY) {
 				/*
 				 * So the interface is up already, that is just
 				 * great. Unfortunately in this case the
 				 * newlink watch might not have been called at
 				 * all. We must manually call it here so that
 				 * the provider can go to ready state and the
-				 * routes are setup properly.
+				 * routes are setup properly. Also reset flags
+				 * so vpn_newlink() can handle the change.
 				 */
+				data->flags = 0;
 				vpn_newlink(IFF_UP, 0, provider);
-			else
+			} else {
 				DBG("Cannot take interface %d up err %d/%s",
 					index, -err, strerror(-err));
+			}
 		}
 		break;
 
@@ -378,6 +380,7 @@ static int vpn_create_tun(struct vpn_provider *provider, int flags)
 	}
 
 	data->tun_flags = flags;
+	g_free(data->if_name);
 	data->if_name = (char *)g_strdup(ifr.ifr_name);
 	if (!data->if_name) {
 		connman_error("Failed to allocate memory");
@@ -558,10 +561,15 @@ static int vpn_disconnect(struct vpn_provider *provider)
 static int vpn_remove(struct vpn_provider *provider)
 {
 	struct vpn_data *data;
+	struct vpn_driver_data *driver_data;
+	const char *name;
+	int err = 0;
 
 	data = vpn_provider_get_data(provider);
+	name = vpn_provider_get_driver_name(provider);
+
 	if (!data)
-		return 0;
+		goto call_remove;
 
 	if (data->watch != 0) {
 		vpn_provider_unref(provider);
@@ -573,7 +581,20 @@ static int vpn_remove(struct vpn_provider *provider)
 
 	g_usleep(G_USEC_PER_SEC);
 	stop_vpn(provider);
-	return 0;
+
+call_remove:
+	if (!name)
+		return 0;
+
+	driver_data = g_hash_table_lookup(driver_hash, name);
+
+	if (driver_data && driver_data->vpn_driver->remove)
+		err = driver_data->vpn_driver->remove(provider);
+
+	if (err)
+		DBG("%p vpn_driver->remove() returned %d", provider, err);
+
+	return err;
 }
 
 static int vpn_save(struct vpn_provider *provider, GKeyFile *keyfile)

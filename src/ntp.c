@@ -23,7 +23,6 @@
 #include <config.h>
 #endif
 
-#define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -194,7 +193,7 @@ static void send_packet(struct ntp_data *nd, struct sockaddr *server,
 		size = sizeof(struct sockaddr_in6);
 		addr = (void *)&nd->timeserver_addr.sin6_addr;
 	} else {
-		connman_error("Family is neither ipv4 nor ipv6");
+		DBG("Family is neither ipv4 nor ipv6");
 		nd->cb(false, nd->user_data);
 		return;
 	}
@@ -207,20 +206,8 @@ static void send_packet(struct ntp_data *nd, struct sockaddr *server,
 
 	len = sendto(nd->transmit_fd, &msg, sizeof(msg), MSG_DONTWAIT,
 						server, size);
-
-	if (len < 0) {
-		connman_error("Time request for server %s failed (%d/%s)",
-			inet_ntop(server->sa_family, addr, ipaddrstring, sizeof(ipaddrstring)),
-			errno, strerror(errno));
-
-		if (errno == ENETUNREACH || errno == EPERM)
-			nd->cb(false, nd->user_data);
-
-		return;
-	}
-
-	if (len != sizeof(msg)) {
-		connman_error("Broken time request for server %s",
+	if (len < 0 || len != sizeof(msg)) {
+		DBG("Time request for server %s failed",
 			inet_ntop(server->sa_family, addr, ipaddrstring, sizeof(ipaddrstring)));
 		nd->cb(false, nd->user_data);
 		return;
@@ -232,6 +219,7 @@ static void send_packet(struct ntp_data *nd, struct sockaddr *server,
 	 * trying another server.
 	 */
 
+	nd->timeout = timeout;
 	nd->timeout_id = g_timeout_add_seconds(timeout, send_timeout, nd);
 }
 
@@ -392,7 +380,7 @@ static void decode_msg(struct ntp_data *nd, void *base, size_t len,
 		tmx.status |= STA_DEL;
 
 	if (adjtimex(&tmx) < 0) {
-		connman_error("Failed to adjust time");
+		connman_error("Failed to adjust time: %s (%d)", strerror(errno), errno);
 		nd->cb(false, nd->user_data);
 		return;
 	}
@@ -580,7 +568,6 @@ err:
 		close(nd->transmit_fd);
 
 	nd->cb(false, nd->user_data);
-	return;
 }
 
 int __connman_ntp_start(char *server, __connman_ntp_cb_t callback,

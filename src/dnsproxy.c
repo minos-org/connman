@@ -2231,7 +2231,7 @@ static gboolean udp_server_event(GIOChannel *channel, GIOCondition condition,
 							gpointer user_data)
 {
 	unsigned char buf[4096];
-	int sk, err, len;
+	int sk, len;
 	struct server_data *data = user_data;
 
 	if (condition & (G_IO_NVAL | G_IO_ERR | G_IO_HUP)) {
@@ -2243,12 +2243,9 @@ static gboolean udp_server_event(GIOChannel *channel, GIOCondition condition,
 	sk = g_io_channel_unix_get_fd(channel);
 
 	len = recv(sk, buf, sizeof(buf), 0);
-	if (len < 12)
-		return TRUE;
 
-	err = forward_dns_reply(buf, len, IPPROTO_UDP, data);
-	if (err < 0)
-		return TRUE;
+	if (len >= 12)
+		forward_dns_reply(buf, len, IPPROTO_UDP, data);
 
 	return TRUE;
 }
@@ -2915,13 +2912,13 @@ static void dnsproxy_default_changed(struct connman_service *service)
 	cache_refresh();
 }
 
-static struct connman_notifier dnsproxy_notifier = {
+static const struct connman_notifier dnsproxy_notifier = {
 	.name			= "dnsproxy",
 	.default_changed	= dnsproxy_default_changed,
 	.offline_mode		= dnsproxy_offline_mode,
 };
 
-static unsigned char opt_edns0_type[2] = { 0x00, 0x29 };
+static const unsigned char opt_edns0_type[2] = { 0x00, 0x29 };
 
 static int parse_request(unsigned char *buf, size_t len,
 					char *name, unsigned int size)
@@ -3973,4 +3970,9 @@ void __connman_dnsproxy_cleanup(void)
 	g_hash_table_destroy(listener_table);
 
 	g_hash_table_destroy(partial_tcp_req_table);
+
+	if (ipv4_resolve)
+		g_resolv_unref(ipv4_resolve);
+	if (ipv6_resolve)
+		g_resolv_unref(ipv6_resolve);
 }

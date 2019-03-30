@@ -33,9 +33,10 @@
 #include <arpa/inet.h>
 #include <net/route.h>
 #include <net/ethernet.h>
-#include <linux/if_arp.h>
 
 #include <gdhcp/gdhcp.h>
+
+#include "../src/connman.h"
 
 static GTimer *timer;
 
@@ -177,7 +178,11 @@ int main(int argc, char *argv[])
 	sigaction(SIGINT, &sa, NULL);
 	sigaction(SIGTERM, &sa, NULL);
 
+	__connman_util_init();
+
 	g_main_loop_run(main_loop);
+
+	__connman_util_cleanup();
 
 	g_timer_destroy(timer);
 

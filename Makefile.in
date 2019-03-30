@@ -184,7 +184,7 @@ DIST_COMMON = $(srcdir)/Makefile.plugins $(srcdir)/Makefile.in \
 @NEARD_TRUE@am__append_87 = neard
 @NEARD_TRUE@am__append_88 = plugins/neard.c
 @CLIENT_TRUE@am__append_89 = client/connmanctl
-TESTS = unit/test-ippool$(EXEEXT)
+TESTS = unit/test-ippool$(EXEEXT) $(am__EXEEXT_9)
 @WISPR_TRUE@am__append_90 = tools/wispr
 @TOOLS_TRUE@am__append_91 = tools/supplicant-test \
 @TOOLS_TRUE@			tools/dhcp-test tools/dhcp-server-test \
@@ -195,10 +195,13 @@ TESTS = unit/test-ippool$(EXEEXT)
 @TOOLS_TRUE@			tools/session-test \
 @TOOLS_TRUE@			tools/dnsproxy-test tools/netlink-test
 
-@TOOLS_TRUE@@XTABLES_TRUE@am__append_92 = tools/iptables-test tools/iptables-unit
-@VPN_TRUE@am__append_93 = vpn/connman-vpn-dbus.conf
-@SELINUX_TRUE@@VPN_TRUE@am__append_94 = connman-task.pp
+@TOOLS_TRUE@@XTABLES_TRUE@am__append_92 = tools/iptables-test tools/ip6tables-test tools/iptables-unit \
+@TOOLS_TRUE@@XTABLES_TRUE@		   unit/test-iptables
+
+@TOOLS_TRUE@@XTABLES_TRUE@am__append_93 = unit/test-iptables
+@VPN_TRUE@am__append_94 = vpn/connman-vpn-dbus.conf
 @SELINUX_TRUE@@VPN_TRUE@am__append_95 = connman-task.pp
+@SELINUX_TRUE@@VPN_TRUE@am__append_96 = connman-task.pp
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/configmake.m4 \
@@ -393,7 +396,9 @@ vpn_plugins_vpnc_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 @TOOLS_TRUE@	tools/dnsproxy-test$(EXEEXT) \
 @TOOLS_TRUE@	tools/netlink-test$(EXEEXT)
 @TOOLS_TRUE@@XTABLES_TRUE@am__EXEEXT_4 = tools/iptables-test$(EXEEXT) \
-@TOOLS_TRUE@@XTABLES_TRUE@	tools/iptables-unit$(EXEEXT)
+@TOOLS_TRUE@@XTABLES_TRUE@	tools/ip6tables-test$(EXEEXT) \
+@TOOLS_TRUE@@XTABLES_TRUE@	tools/iptables-unit$(EXEEXT) \
+@TOOLS_TRUE@@XTABLES_TRUE@	unit/test-iptables$(EXEEXT)
 @VPN_TRUE@am__EXEEXT_5 = vpn/connman-vpnd$(EXEEXT)
 @OPENCONNECT_TRUE@am__EXEEXT_6 = scripts/openconnect-script$(EXEEXT)
 @OPENCONNECT_FALSE@@VPNC_TRUE@am__EXEEXT_7 = scripts/openconnect-script$(EXEEXT)
@@ -404,13 +409,14 @@ am__client_connmanctl_SOURCES_DIST = client/dbus_helpers.h \
 	client/dbus_helpers.c client/services.h client/services.c \
 	client/commands.h client/commands.c client/input.h \
 	client/input.c client/agent.h client/agent.c client/peers.h \
-	client/peers.c client/vpnconnections.h client/vpnconnections.c \
-	client/main.c
+	client/peers.c client/tethering.h client/tethering.c \
+	client/vpnconnections.h client/vpnconnections.c client/main.c
 @CLIENT_TRUE@am_client_connmanctl_OBJECTS =  \
 @CLIENT_TRUE@	client/dbus_helpers.$(OBJEXT) \
 @CLIENT_TRUE@	client/services.$(OBJEXT) \
 @CLIENT_TRUE@	client/commands.$(OBJEXT) client/input.$(OBJEXT) \
 @CLIENT_TRUE@	client/agent.$(OBJEXT) client/peers.$(OBJEXT) \
+@CLIENT_TRUE@	client/tethering.$(OBJEXT) \
 @CLIENT_TRUE@	client/vpnconnections.$(OBJEXT) \
 @CLIENT_TRUE@	client/main.$(OBJEXT)
 client_connmanctl_OBJECTS = $(am_client_connmanctl_OBJECTS)
@@ -424,36 +430,36 @@ scripts_openvpn_script_SOURCES = scripts/openvpn-script.c
 scripts_openvpn_script_OBJECTS = scripts/openvpn-script.$(OBJEXT)
 scripts_openvpn_script_DEPENDENCIES =
 am__src_connmand_SOURCES_DIST = gdhcp/gdhcp.h gdhcp/common.h \
-	gdhcp/common.c gdhcp/client.c gdhcp/server.c gdhcp/ipv4ll.h \
-	gdhcp/ipv4ll.c gdhcp/unaligned.h gweb/gweb.h gweb/gweb.c \
-	gweb/gresolv.h gweb/gresolv.c gweb/giognutls.h \
-	gweb/giognutls.c gweb/gionotls.c src/nostats.c src/stats.c \
-	src/backtrace.c plugins/loopback.c plugins/ethernet.c \
-	plugins/gadget.c plugins/wifi.c gsupplicant/gsupplicant.h \
-	gsupplicant/dbus.h gsupplicant/supplicant.c gsupplicant/dbus.c \
-	plugins/iwd.c plugins/bluetooth.c plugins/hh2serial-gps.c \
-	plugins/mcc.h plugins/ofono.c plugins/dundee.c plugins/vpn.c \
+	gdhcp/common.c gdhcp/client.c gdhcp/server.c gdhcp/unaligned.h \
+	gweb/gweb.h gweb/gweb.c gweb/gresolv.h gweb/gresolv.c \
+	gweb/giognutls.h gweb/giognutls.c gweb/gionotls.c \
+	src/nostats.c src/stats.c src/backtrace.c plugins/loopback.c \
+	plugins/ethernet.c plugins/gadget.c plugins/wifi.c \
+	gsupplicant/gsupplicant.h gsupplicant/dbus.h \
+	gsupplicant/supplicant.c gsupplicant/dbus.c plugins/iwd.c \
+	plugins/bluetooth.c plugins/hh2serial-gps.c plugins/mcc.h \
+	plugins/ofono.c plugins/dundee.c plugins/vpn.c \
 	plugins/pacrunner.c plugins/polkit.c plugins/nmcompat.c \
 	plugins/tist.c plugins/session_policy_local.c plugins/neard.c \
 	src/shared/util.h src/shared/util.c src/shared/netlink.h \
-	src/shared/netlink.c src/connman.ver src/main.c src/connman.h \
-	src/log.c src/error.c src/plugin.c src/task.c src/device.c \
-	src/network.c src/connection.c src/manager.c src/service.c \
-	src/clock.c src/timezone.c src/agent-connman.c src/agent.c \
-	src/notifier.c src/provider.c src/resolver.c src/ipconfig.c \
-	src/detect.c src/inet.c src/dhcp.c src/dhcpv6.c src/rtnl.c \
-	src/proxy.c src/utsname.c src/timeserver.c src/rfkill.c \
-	src/storage.c src/dbus.c src/config.c src/technology.c \
-	src/counter.c src/ntp.c src/session.c src/tethering.c \
-	src/wpad.c src/wispr.c src/6to4.c src/ippool.c src/bridge.c \
-	src/nat.c src/ipaddress.c src/inotify.c src/ipv6pd.c \
-	src/peer.c src/peer_service.c src/machine.c src/util.c \
-	src/dnsproxy.c src/dns-systemd-resolved.c src/iptables.c \
+	src/shared/netlink.c src/shared/arp.h src/shared/arp.c \
+	src/connman.ver src/main.c src/connman.h src/log.c src/error.c \
+	src/plugin.c src/task.c src/device.c src/network.c \
+	src/connection.c src/manager.c src/service.c src/clock.c \
+	src/timezone.c src/agent-connman.c src/agent.c src/notifier.c \
+	src/provider.c src/resolver.c src/ipconfig.c src/detect.c \
+	src/inet.c src/dhcp.c src/dhcpv6.c src/rtnl.c src/proxy.c \
+	src/utsname.c src/timeserver.c src/rfkill.c src/storage.c \
+	src/dbus.c src/config.c src/technology.c src/counter.c \
+	src/ntp.c src/session.c src/tethering.c src/wpad.c src/wispr.c \
+	src/6to4.c src/ippool.c src/bridge.c src/nat.c src/ipaddress.c \
+	src/inotify.c src/ipv6pd.c src/peer.c src/peer_service.c \
+	src/machine.c src/util.c src/acd.c src/dnsproxy.c \
+	src/dns-systemd-resolved.c src/iptables.c \
 	src/firewall-iptables.c src/firewall-nftables.c
 am__objects_1 = gdhcp/src_connmand-common.$(OBJEXT) \
 	gdhcp/src_connmand-client.$(OBJEXT) \
-	gdhcp/src_connmand-server.$(OBJEXT) \
-	gdhcp/src_connmand-ipv4ll.$(OBJEXT)
+	gdhcp/src_connmand-server.$(OBJEXT)
 @WISPR_TRUE@am__objects_2 = gweb/src_connmand-giognutls.$(OBJEXT)
 @WISPR_FALSE@am__objects_3 = gweb/src_connmand-gionotls.$(OBJEXT)
 am__objects_4 = gweb/src_connmand-gweb.$(OBJEXT) \
@@ -493,7 +499,8 @@ am__objects_24 = $(am__objects_7) $(am__objects_8) $(am__objects_9) \
 	$(am__objects_20) $(am__objects_21) $(am__objects_22) \
 	$(am__objects_23)
 am__objects_25 = src/shared/src_connmand-util.$(OBJEXT) \
-	src/shared/src_connmand-netlink.$(OBJEXT)
+	src/shared/src_connmand-netlink.$(OBJEXT) \
+	src/shared/src_connmand-arp.$(OBJEXT)
 @INTERNAL_DNS_BACKEND_TRUE@am__objects_26 = src/src_connmand-dnsproxy.$(OBJEXT)
 @SYSTEMD_RESOLVED_DNS_BACKEND_TRUE@am__objects_27 = src/src_connmand-dns-systemd-resolved.$(OBJEXT)
 @XTABLES_TRUE@am__objects_28 = src/src_connmand-iptables.$(OBJEXT) \
@@ -549,8 +556,9 @@ am_src_connmand_OBJECTS = $(am__objects_1) $(am__objects_4) \
 	src/src_connmand-peer.$(OBJEXT) \
 	src/src_connmand-peer_service.$(OBJEXT) \
 	src/src_connmand-machine.$(OBJEXT) \
-	src/src_connmand-util.$(OBJEXT) $(am__objects_26) \
-	$(am__objects_27) $(am__objects_28) $(am__objects_29)
+	src/src_connmand-util.$(OBJEXT) src/src_connmand-acd.$(OBJEXT) \
+	$(am__objects_26) $(am__objects_27) $(am__objects_28) \
+	$(am__objects_29)
 src_connmand_OBJECTS = $(am_src_connmand_OBJECTS)
 am__DEPENDENCIES_1 =
 src_connmand_DEPENDENCIES = gdbus/libgdbus-internal.la \
@@ -571,20 +579,28 @@ am__tools_dbus_test_SOURCES_DIST = tools/dbus-test.c
 @TOOLS_TRUE@am_tools_dbus_test_OBJECTS = tools/dbus-test.$(OBJEXT)
 tools_dbus_test_OBJECTS = $(am_tools_dbus_test_OBJECTS)
 @TOOLS_TRUE@tools_dbus_test_DEPENDENCIES = gdbus/libgdbus-internal.la
-am__tools_dhcp_server_test_SOURCES_DIST = gdhcp/gdhcp.h gdhcp/common.h \
-	gdhcp/common.c gdhcp/client.c gdhcp/server.c gdhcp/ipv4ll.h \
-	gdhcp/ipv4ll.c gdhcp/unaligned.h tools/dhcp-server-test.c
-am__objects_30 = gdhcp/common.$(OBJEXT) gdhcp/client.$(OBJEXT) \
-	gdhcp/server.$(OBJEXT) gdhcp/ipv4ll.$(OBJEXT)
+am__tools_dhcp_server_test_SOURCES_DIST = src/backtrace.c src/log.c \
+	src/util.c gdhcp/gdhcp.h gdhcp/common.h gdhcp/common.c \
+	gdhcp/client.c gdhcp/server.c gdhcp/unaligned.h src/inet.c \
+	tools/dhcp-server-test.c src/shared/arp.c
+@BACKTRACE_TRUE@am__objects_30 = src/backtrace.$(OBJEXT)
+am__objects_31 = gdhcp/common.$(OBJEXT) gdhcp/client.$(OBJEXT) \
+	gdhcp/server.$(OBJEXT)
 @TOOLS_TRUE@am_tools_dhcp_server_test_OBJECTS = $(am__objects_30) \
-@TOOLS_TRUE@	tools/dhcp-server-test.$(OBJEXT)
+@TOOLS_TRUE@	src/log.$(OBJEXT) src/util.$(OBJEXT) \
+@TOOLS_TRUE@	$(am__objects_31) src/inet.$(OBJEXT) \
+@TOOLS_TRUE@	tools/dhcp-server-test.$(OBJEXT) \
+@TOOLS_TRUE@	src/shared/arp.$(OBJEXT)
 tools_dhcp_server_test_OBJECTS = $(am_tools_dhcp_server_test_OBJECTS)
 tools_dhcp_server_test_DEPENDENCIES =
-am__tools_dhcp_test_SOURCES_DIST = gdhcp/gdhcp.h gdhcp/common.h \
-	gdhcp/common.c gdhcp/client.c gdhcp/server.c gdhcp/ipv4ll.h \
-	gdhcp/ipv4ll.c gdhcp/unaligned.h tools/dhcp-test.c
+am__tools_dhcp_test_SOURCES_DIST = src/backtrace.c src/log.c \
+	src/util.c gdhcp/gdhcp.h gdhcp/common.h gdhcp/common.c \
+	gdhcp/client.c gdhcp/server.c gdhcp/unaligned.h src/inet.c \
+	tools/dhcp-test.c src/shared/arp.c
 @TOOLS_TRUE@am_tools_dhcp_test_OBJECTS = $(am__objects_30) \
-@TOOLS_TRUE@	tools/dhcp-test.$(OBJEXT)
+@TOOLS_TRUE@	src/log.$(OBJEXT) src/util.$(OBJEXT) \
+@TOOLS_TRUE@	$(am__objects_31) src/inet.$(OBJEXT) \
+@TOOLS_TRUE@	tools/dhcp-test.$(OBJEXT) src/shared/arp.$(OBJEXT)
 tools_dhcp_test_OBJECTS = $(am_tools_dhcp_test_OBJECTS)
 tools_dhcp_test_DEPENDENCIES =
 am__tools_dnsproxy_test_SOURCES_DIST = tools/dnsproxy-test.c
@@ -592,11 +608,18 @@ am__tools_dnsproxy_test_SOURCES_DIST = tools/dnsproxy-test.c
 @TOOLS_TRUE@	tools/dnsproxy-test.$(OBJEXT)
 tools_dnsproxy_test_OBJECTS = $(am_tools_dnsproxy_test_OBJECTS)
 tools_dnsproxy_test_DEPENDENCIES =
+am__tools_ip6tables_test_SOURCES_DIST = src/backtrace.c src/log.c \
+	src/iptables.c tools/ip6tables-test.c
+@TOOLS_TRUE@@XTABLES_TRUE@am_tools_ip6tables_test_OBJECTS =  \
+@TOOLS_TRUE@@XTABLES_TRUE@	$(am__objects_30) src/log.$(OBJEXT) \
+@TOOLS_TRUE@@XTABLES_TRUE@	src/iptables.$(OBJEXT) \
+@TOOLS_TRUE@@XTABLES_TRUE@	tools/ip6tables-test.$(OBJEXT)
+tools_ip6tables_test_OBJECTS = $(am_tools_ip6tables_test_OBJECTS)
+tools_ip6tables_test_DEPENDENCIES =
 am__tools_iptables_test_SOURCES_DIST = src/backtrace.c src/log.c \
 	src/iptables.c tools/iptables-test.c
-@BACKTRACE_TRUE@am__objects_31 = src/backtrace.$(OBJEXT)
 @TOOLS_TRUE@@XTABLES_TRUE@am_tools_iptables_test_OBJECTS =  \
-@TOOLS_TRUE@@XTABLES_TRUE@	$(am__objects_31) src/log.$(OBJEXT) \
+@TOOLS_TRUE@@XTABLES_TRUE@	$(am__objects_30) src/log.$(OBJEXT) \
 @TOOLS_TRUE@@XTABLES_TRUE@	src/iptables.$(OBJEXT) \
 @TOOLS_TRUE@@XTABLES_TRUE@	tools/iptables-test.$(OBJEXT)
 tools_iptables_test_OBJECTS = $(am_tools_iptables_test_OBJECTS)
@@ -620,12 +643,10 @@ tools_iptables_unit_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
 	$(tools_iptables_unit_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
 	$(LDFLAGS) -o $@
-am__tools_netlink_test_SOURCES_DIST = src/shared/util.h \
-	src/shared/util.c src/shared/netlink.h src/shared/netlink.c \
-	tools/netlink-test.c
-am__objects_33 = src/shared/util.$(OBJEXT) \
-	src/shared/netlink.$(OBJEXT)
-@TOOLS_TRUE@am_tools_netlink_test_OBJECTS = $(am__objects_33) \
+am__tools_netlink_test_SOURCES_DIST = src/shared/util.c \
+	src/shared/netlink.c tools/netlink-test.c
+@TOOLS_TRUE@am_tools_netlink_test_OBJECTS = src/shared/util.$(OBJEXT) \
+@TOOLS_TRUE@	src/shared/netlink.$(OBJEXT) \
 @TOOLS_TRUE@	tools/netlink-test.$(OBJEXT)
 tools_netlink_test_OBJECTS = $(am_tools_netlink_test_OBJECTS)
 tools_netlink_test_DEPENDENCIES =
@@ -646,7 +667,7 @@ am__tools_session_test_SOURCES_DIST = src/backtrace.c src/log.c \
 	src/dbus.c src/error.c tools/session-test.c \
 	tools/session-utils.c tools/manager-api.c tools/session-api.c \
 	tools/session-test.h
-@TOOLS_TRUE@am_tools_session_test_OBJECTS = $(am__objects_31) \
+@TOOLS_TRUE@am_tools_session_test_OBJECTS = $(am__objects_30) \
 @TOOLS_TRUE@	src/log.$(OBJEXT) src/dbus.$(OBJEXT) \
 @TOOLS_TRUE@	src/error.$(OBJEXT) tools/session-test.$(OBJEXT) \
 @TOOLS_TRUE@	tools/session-utils.$(OBJEXT) \
@@ -674,18 +695,18 @@ tools_tap_test_LDADD = $(LDADD)
 am__tools_web_test_SOURCES_DIST = gweb/gweb.h gweb/gweb.c \
 	gweb/gresolv.h gweb/gresolv.c gweb/giognutls.h \
 	gweb/giognutls.c gweb/gionotls.c tools/web-test.c
-@WISPR_TRUE@am__objects_34 = gweb/giognutls.$(OBJEXT)
-@WISPR_FALSE@am__objects_35 = gweb/gionotls.$(OBJEXT)
-am__objects_36 = gweb/gweb.$(OBJEXT) gweb/gresolv.$(OBJEXT) \
-	$(am__objects_34) $(am__objects_35)
-@TOOLS_TRUE@am_tools_web_test_OBJECTS = $(am__objects_36) \
+@WISPR_TRUE@am__objects_33 = gweb/giognutls.$(OBJEXT)
+@WISPR_FALSE@am__objects_34 = gweb/gionotls.$(OBJEXT)
+am__objects_35 = gweb/gweb.$(OBJEXT) gweb/gresolv.$(OBJEXT) \
+	$(am__objects_33) $(am__objects_34)
+@TOOLS_TRUE@am_tools_web_test_OBJECTS = $(am__objects_35) \
 @TOOLS_TRUE@	tools/web-test.$(OBJEXT)
 tools_web_test_OBJECTS = $(am_tools_web_test_OBJECTS)
 tools_web_test_DEPENDENCIES =
 am__tools_wispr_SOURCES_DIST = gweb/gweb.h gweb/gweb.c gweb/gresolv.h \
 	gweb/gresolv.c gweb/giognutls.h gweb/giognutls.c \
 	gweb/gionotls.c tools/wispr.c
-@WISPR_TRUE@am_tools_wispr_OBJECTS = $(am__objects_36) \
+@WISPR_TRUE@am_tools_wispr_OBJECTS = $(am__objects_35) \
 @WISPR_TRUE@	tools/wispr.$(OBJEXT)
 tools_wispr_OBJECTS = $(am_tools_wispr_OBJECTS)
 tools_wispr_DEPENDENCIES =
@@ -697,11 +718,26 @@ tools_wpad_test_OBJECTS = $(am_tools_wpad_test_OBJECTS)
 tools_wpad_test_DEPENDENCIES =
 am__unit_test_ippool_SOURCES_DIST = src/backtrace.c src/log.c \
 	src/dbus.c src/error.c src/ippool.c unit/test-ippool.c
-am_unit_test_ippool_OBJECTS = $(am__objects_31) src/log.$(OBJEXT) \
+am_unit_test_ippool_OBJECTS = $(am__objects_30) src/log.$(OBJEXT) \
 	src/dbus.$(OBJEXT) src/error.$(OBJEXT) src/ippool.$(OBJEXT) \
 	unit/test-ippool.$(OBJEXT)
 unit_test_ippool_OBJECTS = $(am_unit_test_ippool_OBJECTS)
 unit_test_ippool_DEPENDENCIES = gdbus/libgdbus-internal.la
+am__unit_test_iptables_SOURCES_DIST = src/backtrace.c src/connman.h \
+	src/log.c unit/test-iptables.c src/iptables.c
+@BACKTRACE_TRUE@am__objects_36 =  \
+@BACKTRACE_TRUE@	src/unit_test_iptables-backtrace.$(OBJEXT)
+@TOOLS_TRUE@@XTABLES_TRUE@am_unit_test_iptables_OBJECTS =  \
+@TOOLS_TRUE@@XTABLES_TRUE@	$(am__objects_36) \
+@TOOLS_TRUE@@XTABLES_TRUE@	src/unit_test_iptables-log.$(OBJEXT) \
+@TOOLS_TRUE@@XTABLES_TRUE@	unit/unit_test_iptables-test-iptables.$(OBJEXT) \
+@TOOLS_TRUE@@XTABLES_TRUE@	src/unit_test_iptables-iptables.$(OBJEXT)
+unit_test_iptables_OBJECTS = $(am_unit_test_iptables_OBJECTS)
+unit_test_iptables_DEPENDENCIES =
+unit_test_iptables_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
+	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
+	$(unit_test_iptables_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
+	$(LDFLAGS) -o $@
 am__vpn_connman_vpnd_SOURCES_DIST = vpn/plugins/openconnect.c \
 	vpn/plugins/openvpn.c vpn/plugins/vpnc.c vpn/plugins/l2tp.c \
 	vpn/plugins/pptp.c vpn/plugins/vpn.c vpn/plugins/vpn.h \
@@ -834,13 +870,14 @@ SOURCES = $(gdbus_libgdbus_internal_la_SOURCES) \
 	$(src_connmand_wait_online_SOURCES) tools/addr-test.c \
 	$(tools_dbus_test_SOURCES) $(tools_dhcp_server_test_SOURCES) \
 	$(tools_dhcp_test_SOURCES) $(tools_dnsproxy_test_SOURCES) \
-	$(tools_iptables_test_SOURCES) $(tools_iptables_unit_SOURCES) \
-	$(tools_netlink_test_SOURCES) tools/polkit-test.c \
-	tools/private-network-test.c $(tools_resolv_test_SOURCES) \
-	$(tools_session_test_SOURCES) tools/stats-tool.c \
-	$(tools_supplicant_test_SOURCES) tools/tap-test.c \
-	$(tools_web_test_SOURCES) $(tools_wispr_SOURCES) \
-	$(tools_wpad_test_SOURCES) $(unit_test_ippool_SOURCES) \
+	$(tools_ip6tables_test_SOURCES) $(tools_iptables_test_SOURCES) \
+	$(tools_iptables_unit_SOURCES) $(tools_netlink_test_SOURCES) \
+	tools/polkit-test.c tools/private-network-test.c \
+	$(tools_resolv_test_SOURCES) $(tools_session_test_SOURCES) \
+	tools/stats-tool.c $(tools_supplicant_test_SOURCES) \
+	tools/tap-test.c $(tools_web_test_SOURCES) \
+	$(tools_wispr_SOURCES) $(tools_wpad_test_SOURCES) \
+	$(unit_test_ippool_SOURCES) $(unit_test_iptables_SOURCES) \
 	$(vpn_connman_vpnd_SOURCES)
 DIST_SOURCES = $(gdbus_libgdbus_internal_la_SOURCES) \
 	plugins/hh2serial-gps.c plugins/iospm.c \
@@ -859,6 +896,7 @@ DIST_SOURCES = $(gdbus_libgdbus_internal_la_SOURCES) \
 	$(am__tools_dhcp_server_test_SOURCES_DIST) \
 	$(am__tools_dhcp_test_SOURCES_DIST) \
 	$(am__tools_dnsproxy_test_SOURCES_DIST) \
+	$(am__tools_ip6tables_test_SOURCES_DIST) \
 	$(am__tools_iptables_test_SOURCES_DIST) \
 	$(am__tools_iptables_unit_SOURCES_DIST) \
 	$(am__tools_netlink_test_SOURCES_DIST) tools/polkit-test.c \
@@ -870,6 +908,7 @@ DIST_SOURCES = $(gdbus_libgdbus_internal_la_SOURCES) \
 	$(am__tools_wispr_SOURCES_DIST) \
 	$(am__tools_wpad_test_SOURCES_DIST) \
 	$(am__unit_test_ippool_SOURCES_DIST) \
+	$(am__unit_test_iptables_SOURCES_DIST) \
 	$(am__vpn_connman_vpnd_SOURCES_DIST)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
@@ -1064,6 +1103,7 @@ am__set_TESTS_bases = \
   bases=`for i in $$bases; do echo $$i; done | sed 's/\.log$$//'`; \
   bases=`echo $$bases`
 RECHECK_LOGS = $(TEST_LOGS)
+@TOOLS_TRUE@@XTABLES_TRUE@am__EXEEXT_9 = unit/test-iptables$(EXEEXT)
 TEST_SUITE_LOG = test-suite.log
 TEST_EXTENSIONS = @EXEEXT@ .test
 LOG_DRIVER = $(SHELL) $(top_srcdir)/test-driver
@@ -1140,6 +1180,7 @@ INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
+IP6TABLES_SAVE = @IP6TABLES_SAVE@
 IPTABLES_SAVE = @IPTABLES_SAVE@
 L2TP = @L2TP@
 LD = @LD@
@@ -1251,7 +1292,8 @@ include_HEADERS = include/log.h include/plugin.h \
 			include/device.h include/network.h include/inet.h \
 			include/storage.h include/provision.h \
 			include/session.h include/ipaddress.h include/agent.h \
-			include/inotify.h include/peer.h include/machine.h
+			include/inotify.h include/peer.h include/machine.h \
+			include/acd.h include/tethering.h
 
 nodist_include_HEADERS = include/version.h
 noinst_HEADERS = include/rtnl.h include/task.h \
@@ -1268,16 +1310,17 @@ gdbus_libgdbus_internal_la_SOURCES = gdbus/gdbus.h \
 				gdbus/mainloop.c gdbus/watch.c \
 				gdbus/object.c gdbus/client.c gdbus/polkit.c
 
+@BACKTRACE_TRUE@backtrace_sources = src/backtrace.c
 gdhcp_sources = gdhcp/gdhcp.h gdhcp/common.h gdhcp/common.c gdhcp/client.c \
-		gdhcp/server.c gdhcp/ipv4ll.h gdhcp/ipv4ll.c gdhcp/unaligned.h
+		gdhcp/server.c gdhcp/unaligned.h
 
 gweb_sources = gweb/gweb.h gweb/gweb.c gweb/gresolv.h gweb/gresolv.c \
 	$(am__append_1) $(am__append_2)
 @STATS_FALSE@stats_sources = src/nostats.c
 @STATS_TRUE@stats_sources = src/stats.c
-@BACKTRACE_TRUE@backtrace_sources = src/backtrace.c
 shared_sources = src/shared/util.h src/shared/util.c \
-		src/shared/netlink.h src/shared/netlink.c
+		src/shared/netlink.h src/shared/netlink.c \
+		src/shared/arp.h src/shared/arp.c
 
 @DATAFILES_TRUE@@NMCOMPAT_TRUE@nmcompat_conf = plugins/connman-nmcompat.conf
 @DATAFILES_TRUE@dbusconfdir = @DBUS_CONFDIR@
@@ -1338,7 +1381,7 @@ src_connmand_SOURCES = $(gdhcp_sources) $(gweb_sources) \
 	src/wpad.c src/wispr.c src/6to4.c src/ippool.c src/bridge.c \
 	src/nat.c src/ipaddress.c src/inotify.c src/ipv6pd.c \
 	src/peer.c src/peer_service.c src/machine.c src/util.c \
-	$(am__append_5) $(am__append_6) $(am__append_7) \
+	src/acd.c $(am__append_5) $(am__append_6) $(am__append_7) \
 	$(am__append_9)
 src_connmand_LDADD = gdbus/libgdbus-internal.la $(builtin_libadd) \
 	@GLIB_LIBS@ @DBUS_LIBS@ @GNUTLS_LIBS@ -lresolv -ldl -lrt \
@@ -1382,7 +1425,7 @@ src_connmand_wait_online_LDADD = gdbus/libgdbus-internal.la \
 BUILT_SOURCES = $(local_headers) src/builtin.h $(service_files) \
 	scripts/connman $(am__append_12) $(am__append_13)
 CLEANFILES = src/connman.conf $(BUILT_SOURCES) $(service_files) \
-	$(am__append_93) $(am__append_95)
+	$(am__append_94) $(am__append_96)
 statedir = $(runstatedir)/connman
 vpn_statedir = $(runstatedir)/connman-vpn
 @VPN_TRUE@vpn_plugindir = $(libdir)/connman/plugins-vpn
@@ -1437,7 +1480,7 @@ EXTRA_DIST = src/genbuiltin src/connman-dbus.conf \
 	doc/connman-service.config.5.in doc/connman-vpn.conf.5.in \
 	doc/connman-vpn-provider.config.5.in doc/connman.8.in \
 	doc/connman-vpn.8.in src/main.conf src/eduroam.config \
-	scripts/connman_resolvconf.conf.in $(am__append_94) \
+	scripts/connman_resolvconf.conf.in $(am__append_95) \
 	vpn/connman-task.te
 @VPN_TRUE@vpn_connman_vpnd_CFLAGS = @DBUS_CFLAGS@ @GLIB_CFLAGS@ \
 @VPN_TRUE@				$(builtin_vpn_cflags) \
@@ -1532,6 +1575,7 @@ gsupplicant_sources = gsupplicant/gsupplicant.h gsupplicant/dbus.h \
 @CLIENT_TRUE@			client/input.h client/input.c \
 @CLIENT_TRUE@			client/agent.h client/agent.c \
 @CLIENT_TRUE@			client/peers.h client/peers.c \
+@CLIENT_TRUE@			client/tethering.h client/tethering.c \
 @CLIENT_TRUE@			client/vpnconnections.h client/vpnconnections.c \
 @CLIENT_TRUE@			client/main.c
 
@@ -1560,10 +1604,14 @@ unit_test_ippool_LDADD = gdbus/libgdbus-internal.la \
 @TOOLS_TRUE@tools_wpad_test_SOURCES = gweb/gresolv.h gweb/gresolv.c tools/wpad-test.c
 @TOOLS_TRUE@tools_wpad_test_LDADD = @GLIB_LIBS@ -lresolv
 @TOOLS_TRUE@tools_stats_tool_LDADD = @GLIB_LIBS@
-@TOOLS_TRUE@tools_dhcp_test_SOURCES = $(gdhcp_sources) tools/dhcp-test.c
-@TOOLS_TRUE@tools_dhcp_test_LDADD = @GLIB_LIBS@
-@TOOLS_TRUE@tools_dhcp_server_test_SOURCES = $(gdhcp_sources) tools/dhcp-server-test.c
-@TOOLS_TRUE@tools_dhcp_server_test_LDADD = @GLIB_LIBS@
+@TOOLS_TRUE@tools_dhcp_test_SOURCES = $(backtrace_sources) src/log.c src/util.c \
+@TOOLS_TRUE@		 $(gdhcp_sources) src/inet.c tools/dhcp-test.c src/shared/arp.c
+
+@TOOLS_TRUE@tools_dhcp_test_LDADD = @GLIB_LIBS@ -ldl
+@TOOLS_TRUE@tools_dhcp_server_test_SOURCES = $(backtrace_sources) src/log.c src/util.c \
+@TOOLS_TRUE@		$(gdhcp_sources) src/inet.c tools/dhcp-server-test.c src/shared/arp.c
+
+@TOOLS_TRUE@tools_dhcp_server_test_LDADD = @GLIB_LIBS@ -ldl
 @TOOLS_TRUE@tools_dbus_test_SOURCES = tools/dbus-test.c
 @TOOLS_TRUE@tools_dbus_test_LDADD = gdbus/libgdbus-internal.la @GLIB_LIBS@ @DBUS_LIBS@
 @TOOLS_TRUE@tools_polkit_test_LDADD = @DBUS_LIBS@
@@ -1579,8 +1627,13 @@ unit_test_ippool_LDADD = gdbus/libgdbus-internal.la \
 @TOOLS_TRUE@@XTABLES_TRUE@				tools/iptables-test.c
 
 @TOOLS_TRUE@@XTABLES_TRUE@tools_iptables_test_LDADD = @GLIB_LIBS@ @XTABLES_LIBS@ -ldl
+@TOOLS_TRUE@@XTABLES_TRUE@tools_ip6tables_test_SOURCES = $(backtrace_sources) src/log.c src/iptables.c \
+@TOOLS_TRUE@@XTABLES_TRUE@				tools/ip6tables-test.c
+
+@TOOLS_TRUE@@XTABLES_TRUE@tools_ip6tables_test_LDADD = @GLIB_LIBS@ @XTABLES_LIBS@ -ldl
 @TOOLS_TRUE@@XTABLES_TRUE@tools_iptables_unit_CFLAGS = @DBUS_CFLAGS@ @GLIB_CFLAGS@ @XTABLES_CFLAGS@ \
-@TOOLS_TRUE@@XTABLES_TRUE@		-DIPTABLES_SAVE=\""${IPTABLES_SAVE}"\"
+@TOOLS_TRUE@@XTABLES_TRUE@		-DIPTABLES_SAVE=\""${IPTABLES_SAVE}"\" \
+@TOOLS_TRUE@@XTABLES_TRUE@		-DIP6TABLES_SAVE=\""${IP6TABLES_SAVE}"\"
 
 @TOOLS_TRUE@@XTABLES_TRUE@tools_iptables_unit_SOURCES = $(backtrace_sources) src/log.c \
 @TOOLS_TRUE@@XTABLES_TRUE@		src/iptables.c src/firewall-iptables.c src/nat.c \
@@ -1589,9 +1642,16 @@ unit_test_ippool_LDADD = gdbus/libgdbus-internal.la \
 @TOOLS_TRUE@@XTABLES_TRUE@tools_iptables_unit_LDADD = gdbus/libgdbus-internal.la \
 @TOOLS_TRUE@@XTABLES_TRUE@				@GLIB_LIBS@ @DBUS_LIBS@ @XTABLES_LIBS@ -ldl
 
+@TOOLS_TRUE@@XTABLES_TRUE@unit_test_iptables_CFLAGS = $(COVERAGE_OPT) $(AM_CFLAGS) @GLIB_CFLAGS@
+@TOOLS_TRUE@@XTABLES_TRUE@unit_test_iptables_SOURCES = $(backtrace_sources) src/connman.h src/log.c \
+@TOOLS_TRUE@@XTABLES_TRUE@			                                     unit/test-iptables.c src/iptables.c
+
+@TOOLS_TRUE@@XTABLES_TRUE@unit_test_iptables_LDADD = @GLIB_LIBS@ -ldl
 @TOOLS_TRUE@tools_dnsproxy_test_SOURCES = tools/dnsproxy-test.c
 @TOOLS_TRUE@tools_dnsproxy_test_LDADD = @GLIB_LIBS@
-@TOOLS_TRUE@tools_netlink_test_SOURCES = $(shared_sources) tools/netlink-test.c
+@TOOLS_TRUE@tools_netlink_test_SOURCES = src/shared/util.c src/shared/netlink.c \
+@TOOLS_TRUE@		tools/netlink-test.c
+
 @TOOLS_TRUE@tools_netlink_test_LDADD = @GLIB_LIBS@
 test_scripts = test/get-state test/list-services test/monitor-services \
 	test/test-clock test/simple-agent test/show-introspection \
@@ -2081,6 +2141,8 @@ client/agent.$(OBJEXT): client/$(am__dirstamp) \
 	client/$(DEPDIR)/$(am__dirstamp)
 client/peers.$(OBJEXT): client/$(am__dirstamp) \
 	client/$(DEPDIR)/$(am__dirstamp)
+client/tethering.$(OBJEXT): client/$(am__dirstamp) \
+	client/$(DEPDIR)/$(am__dirstamp)
 client/vpnconnections.$(OBJEXT): client/$(am__dirstamp) \
 	client/$(DEPDIR)/$(am__dirstamp)
 client/main.$(OBJEXT): client/$(am__dirstamp) \
@@ -2112,8 +2174,6 @@ gdhcp/src_connmand-common.$(OBJEXT): gdhcp/$(am__dirstamp) \
 gdhcp/src_connmand-client.$(OBJEXT): gdhcp/$(am__dirstamp) \
 	gdhcp/$(DEPDIR)/$(am__dirstamp)
 gdhcp/src_connmand-server.$(OBJEXT): gdhcp/$(am__dirstamp) \
-	gdhcp/$(DEPDIR)/$(am__dirstamp)
-gdhcp/src_connmand-ipv4ll.$(OBJEXT): gdhcp/$(am__dirstamp) \
 	gdhcp/$(DEPDIR)/$(am__dirstamp)
 gweb/$(am__dirstamp):
 	@$(MKDIR_P) gweb
@@ -2193,6 +2253,8 @@ src/shared/$(DEPDIR)/$(am__dirstamp):
 src/shared/src_connmand-util.$(OBJEXT): src/shared/$(am__dirstamp) \
 	src/shared/$(DEPDIR)/$(am__dirstamp)
 src/shared/src_connmand-netlink.$(OBJEXT): src/shared/$(am__dirstamp) \
+	src/shared/$(DEPDIR)/$(am__dirstamp)
+src/shared/src_connmand-arp.$(OBJEXT): src/shared/$(am__dirstamp) \
 	src/shared/$(DEPDIR)/$(am__dirstamp)
 src/src_connmand-main.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
@@ -2290,6 +2352,8 @@ src/src_connmand-machine.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 src/src_connmand-util.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
+src/src_connmand-acd.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
 src/src_connmand-dnsproxy.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 src/src_connmand-dns-systemd-resolved.$(OBJEXT): src/$(am__dirstamp) \
@@ -2328,16 +2392,21 @@ tools/dbus-test.$(OBJEXT): tools/$(am__dirstamp) \
 tools/dbus-test$(EXEEXT): $(tools_dbus_test_OBJECTS) $(tools_dbus_test_DEPENDENCIES) $(EXTRA_tools_dbus_test_DEPENDENCIES) tools/$(am__dirstamp)
 	@rm -f tools/dbus-test$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(tools_dbus_test_OBJECTS) $(tools_dbus_test_LDADD) $(LIBS)
+src/backtrace.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/log.$(OBJEXT): src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+src/util.$(OBJEXT): src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 gdhcp/common.$(OBJEXT): gdhcp/$(am__dirstamp) \
 	gdhcp/$(DEPDIR)/$(am__dirstamp)
 gdhcp/client.$(OBJEXT): gdhcp/$(am__dirstamp) \
 	gdhcp/$(DEPDIR)/$(am__dirstamp)
 gdhcp/server.$(OBJEXT): gdhcp/$(am__dirstamp) \
 	gdhcp/$(DEPDIR)/$(am__dirstamp)
-gdhcp/ipv4ll.$(OBJEXT): gdhcp/$(am__dirstamp) \
-	gdhcp/$(DEPDIR)/$(am__dirstamp)
+src/inet.$(OBJEXT): src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 tools/dhcp-server-test.$(OBJEXT): tools/$(am__dirstamp) \
 	tools/$(DEPDIR)/$(am__dirstamp)
+src/shared/arp.$(OBJEXT): src/shared/$(am__dirstamp) \
+	src/shared/$(DEPDIR)/$(am__dirstamp)
 
 tools/dhcp-server-test$(EXEEXT): $(tools_dhcp_server_test_OBJECTS) $(tools_dhcp_server_test_DEPENDENCIES) $(EXTRA_tools_dhcp_server_test_DEPENDENCIES) tools/$(am__dirstamp)
 	@rm -f tools/dhcp-server-test$(EXEEXT)
@@ -2354,11 +2423,14 @@ tools/dnsproxy-test.$(OBJEXT): tools/$(am__dirstamp) \
 tools/dnsproxy-test$(EXEEXT): $(tools_dnsproxy_test_OBJECTS) $(tools_dnsproxy_test_DEPENDENCIES) $(EXTRA_tools_dnsproxy_test_DEPENDENCIES) tools/$(am__dirstamp)
 	@rm -f tools/dnsproxy-test$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(tools_dnsproxy_test_OBJECTS) $(tools_dnsproxy_test_LDADD) $(LIBS)
-src/backtrace.$(OBJEXT): src/$(am__dirstamp) \
-	src/$(DEPDIR)/$(am__dirstamp)
-src/log.$(OBJEXT): src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
 src/iptables.$(OBJEXT): src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
+tools/ip6tables-test.$(OBJEXT): tools/$(am__dirstamp) \
+	tools/$(DEPDIR)/$(am__dirstamp)
+
+tools/ip6tables-test$(EXEEXT): $(tools_ip6tables_test_OBJECTS) $(tools_ip6tables_test_DEPENDENCIES) $(EXTRA_tools_ip6tables_test_DEPENDENCIES) tools/$(am__dirstamp)
+	@rm -f tools/ip6tables-test$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(tools_ip6tables_test_OBJECTS) $(tools_ip6tables_test_LDADD) $(LIBS)
 tools/iptables-test.$(OBJEXT): tools/$(am__dirstamp) \
 	tools/$(DEPDIR)/$(am__dirstamp)
 
@@ -2485,6 +2557,18 @@ unit/test-ippool.$(OBJEXT): unit/$(am__dirstamp) \
 unit/test-ippool$(EXEEXT): $(unit_test_ippool_OBJECTS) $(unit_test_ippool_DEPENDENCIES) $(EXTRA_unit_test_ippool_DEPENDENCIES) unit/$(am__dirstamp)
 	@rm -f unit/test-ippool$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(unit_test_ippool_OBJECTS) $(unit_test_ippool_LDADD) $(LIBS)
+src/unit_test_iptables-backtrace.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/unit_test_iptables-log.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+unit/unit_test_iptables-test-iptables.$(OBJEXT): unit/$(am__dirstamp) \
+	unit/$(DEPDIR)/$(am__dirstamp)
+src/unit_test_iptables-iptables.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+
+unit/test-iptables$(EXEEXT): $(unit_test_iptables_OBJECTS) $(unit_test_iptables_DEPENDENCIES) $(EXTRA_unit_test_iptables_DEPENDENCIES) unit/$(am__dirstamp)
+	@rm -f unit/test-iptables$(EXEEXT)
+	$(AM_V_CCLD)$(unit_test_iptables_LINK) $(unit_test_iptables_OBJECTS) $(unit_test_iptables_LDADD) $(LIBS)
 vpn/plugins/vpn_connman_vpnd-openconnect.$(OBJEXT):  \
 	vpn/plugins/$(am__dirstamp) \
 	vpn/plugins/$(DEPDIR)/$(am__dirstamp)
@@ -2623,6 +2707,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@client/$(DEPDIR)/main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@client/$(DEPDIR)/peers.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@client/$(DEPDIR)/services.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@client/$(DEPDIR)/tethering.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@client/$(DEPDIR)/vpnconnections.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@gdbus/$(DEPDIR)/client.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@gdbus/$(DEPDIR)/mainloop.Plo@am__quote@
@@ -2631,11 +2716,9 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@gdbus/$(DEPDIR)/watch.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@gdhcp/$(DEPDIR)/client.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@gdhcp/$(DEPDIR)/common.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@gdhcp/$(DEPDIR)/ipv4ll.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@gdhcp/$(DEPDIR)/server.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@gdhcp/$(DEPDIR)/src_connmand-client.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@gdhcp/$(DEPDIR)/src_connmand-common.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@gdhcp/$(DEPDIR)/src_connmand-ipv4ll.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@gdhcp/$(DEPDIR)/src_connmand-server.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@gsupplicant/$(DEPDIR)/src_connmand-dbus.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@gsupplicant/$(DEPDIR)/src_connmand-supplicant.Po@am__quote@
@@ -2678,10 +2761,12 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/connmand-wait-online.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/dbus.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/error.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/inet.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/ippool.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/iptables.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/log.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_connmand-6to4.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_connmand-acd.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_connmand-agent-connman.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_connmand-agent.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_connmand-backtrace.Po@am__quote@
@@ -2742,6 +2827,10 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/tools_iptables_unit-iptables.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/tools_iptables_unit-log.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/tools_iptables_unit-nat.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/unit_test_iptables-backtrace.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/unit_test_iptables-iptables.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/unit_test_iptables-log.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/util.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/vpn_connman_vpnd-agent.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/vpn_connman_vpnd-backtrace.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/vpn_connman_vpnd-dbus.Po@am__quote@
@@ -2753,7 +2842,9 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/vpn_connman_vpnd-plugin.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/vpn_connman_vpnd-storage.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/vpn_connman_vpnd-task.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/shared/$(DEPDIR)/arp.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/shared/$(DEPDIR)/netlink.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/shared/$(DEPDIR)/src_connmand-arp.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/shared/$(DEPDIR)/src_connmand-netlink.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/shared/$(DEPDIR)/src_connmand-util.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/shared/$(DEPDIR)/util.Po@am__quote@
@@ -2762,6 +2853,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@tools/$(DEPDIR)/dhcp-server-test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@tools/$(DEPDIR)/dhcp-test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@tools/$(DEPDIR)/dnsproxy-test.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@tools/$(DEPDIR)/ip6tables-test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@tools/$(DEPDIR)/iptables-test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@tools/$(DEPDIR)/manager-api.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@tools/$(DEPDIR)/netlink-test.Po@am__quote@
@@ -2781,6 +2873,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@tools/$(DEPDIR)/wispr.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@tools/$(DEPDIR)/wpad-test.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@unit/$(DEPDIR)/test-ippool.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@unit/$(DEPDIR)/unit_test_iptables-test-iptables.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@vpn/$(DEPDIR)/vpn_connman_vpnd-main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@vpn/$(DEPDIR)/vpn_connman_vpnd-vpn-agent.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@vpn/$(DEPDIR)/vpn_connman_vpnd-vpn-config.Po@am__quote@
@@ -2968,20 +3061,6 @@ gdhcp/src_connmand-server.obj: gdhcp/server.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='gdhcp/server.c' object='gdhcp/src_connmand-server.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(src_connmand_CFLAGS) $(CFLAGS) -c -o gdhcp/src_connmand-server.obj `if test -f 'gdhcp/server.c'; then $(CYGPATH_W) 'gdhcp/server.c'; else $(CYGPATH_W) '$(srcdir)/gdhcp/server.c'; fi`
-
-gdhcp/src_connmand-ipv4ll.o: gdhcp/ipv4ll.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(src_connmand_CFLAGS) $(CFLAGS) -MT gdhcp/src_connmand-ipv4ll.o -MD -MP -MF gdhcp/$(DEPDIR)/src_connmand-ipv4ll.Tpo -c -o gdhcp/src_connmand-ipv4ll.o `test -f 'gdhcp/ipv4ll.c' || echo '$(srcdir)/'`gdhcp/ipv4ll.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) gdhcp/$(DEPDIR)/src_connmand-ipv4ll.Tpo gdhcp/$(DEPDIR)/src_connmand-ipv4ll.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='gdhcp/ipv4ll.c' object='gdhcp/src_connmand-ipv4ll.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(src_connmand_CFLAGS) $(CFLAGS) -c -o gdhcp/src_connmand-ipv4ll.o `test -f 'gdhcp/ipv4ll.c' || echo '$(srcdir)/'`gdhcp/ipv4ll.c
-
-gdhcp/src_connmand-ipv4ll.obj: gdhcp/ipv4ll.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(src_connmand_CFLAGS) $(CFLAGS) -MT gdhcp/src_connmand-ipv4ll.obj -MD -MP -MF gdhcp/$(DEPDIR)/src_connmand-ipv4ll.Tpo -c -o gdhcp/src_connmand-ipv4ll.obj `if test -f 'gdhcp/ipv4ll.c'; then $(CYGPATH_W) 'gdhcp/ipv4ll.c'; else $(CYGPATH_W) '$(srcdir)/gdhcp/ipv4ll.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) gdhcp/$(DEPDIR)/src_connmand-ipv4ll.Tpo gdhcp/$(DEPDIR)/src_connmand-ipv4ll.Po
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='gdhcp/ipv4ll.c' object='gdhcp/src_connmand-ipv4ll.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(src_connmand_CFLAGS) $(CFLAGS) -c -o gdhcp/src_connmand-ipv4ll.obj `if test -f 'gdhcp/ipv4ll.c'; then $(CYGPATH_W) 'gdhcp/ipv4ll.c'; else $(CYGPATH_W) '$(srcdir)/gdhcp/ipv4ll.c'; fi`
 
 gweb/src_connmand-gweb.o: gweb/gweb.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(src_connmand_CFLAGS) $(CFLAGS) -MT gweb/src_connmand-gweb.o -MD -MP -MF gweb/$(DEPDIR)/src_connmand-gweb.Tpo -c -o gweb/src_connmand-gweb.o `test -f 'gweb/gweb.c' || echo '$(srcdir)/'`gweb/gweb.c
@@ -3360,6 +3439,20 @@ src/shared/src_connmand-netlink.obj: src/shared/netlink.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/shared/netlink.c' object='src/shared/src_connmand-netlink.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(src_connmand_CFLAGS) $(CFLAGS) -c -o src/shared/src_connmand-netlink.obj `if test -f 'src/shared/netlink.c'; then $(CYGPATH_W) 'src/shared/netlink.c'; else $(CYGPATH_W) '$(srcdir)/src/shared/netlink.c'; fi`
+
+src/shared/src_connmand-arp.o: src/shared/arp.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(src_connmand_CFLAGS) $(CFLAGS) -MT src/shared/src_connmand-arp.o -MD -MP -MF src/shared/$(DEPDIR)/src_connmand-arp.Tpo -c -o src/shared/src_connmand-arp.o `test -f 'src/shared/arp.c' || echo '$(srcdir)/'`src/shared/arp.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/shared/$(DEPDIR)/src_connmand-arp.Tpo src/shared/$(DEPDIR)/src_connmand-arp.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/shared/arp.c' object='src/shared/src_connmand-arp.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(src_connmand_CFLAGS) $(CFLAGS) -c -o src/shared/src_connmand-arp.o `test -f 'src/shared/arp.c' || echo '$(srcdir)/'`src/shared/arp.c
+
+src/shared/src_connmand-arp.obj: src/shared/arp.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(src_connmand_CFLAGS) $(CFLAGS) -MT src/shared/src_connmand-arp.obj -MD -MP -MF src/shared/$(DEPDIR)/src_connmand-arp.Tpo -c -o src/shared/src_connmand-arp.obj `if test -f 'src/shared/arp.c'; then $(CYGPATH_W) 'src/shared/arp.c'; else $(CYGPATH_W) '$(srcdir)/src/shared/arp.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/shared/$(DEPDIR)/src_connmand-arp.Tpo src/shared/$(DEPDIR)/src_connmand-arp.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/shared/arp.c' object='src/shared/src_connmand-arp.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(src_connmand_CFLAGS) $(CFLAGS) -c -o src/shared/src_connmand-arp.obj `if test -f 'src/shared/arp.c'; then $(CYGPATH_W) 'src/shared/arp.c'; else $(CYGPATH_W) '$(srcdir)/src/shared/arp.c'; fi`
 
 src/src_connmand-main.o: src/main.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(src_connmand_CFLAGS) $(CFLAGS) -MT src/src_connmand-main.o -MD -MP -MF src/$(DEPDIR)/src_connmand-main.Tpo -c -o src/src_connmand-main.o `test -f 'src/main.c' || echo '$(srcdir)/'`src/main.c
@@ -4033,6 +4126,20 @@ src/src_connmand-util.obj: src/util.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(src_connmand_CFLAGS) $(CFLAGS) -c -o src/src_connmand-util.obj `if test -f 'src/util.c'; then $(CYGPATH_W) 'src/util.c'; else $(CYGPATH_W) '$(srcdir)/src/util.c'; fi`
 
+src/src_connmand-acd.o: src/acd.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(src_connmand_CFLAGS) $(CFLAGS) -MT src/src_connmand-acd.o -MD -MP -MF src/$(DEPDIR)/src_connmand-acd.Tpo -c -o src/src_connmand-acd.o `test -f 'src/acd.c' || echo '$(srcdir)/'`src/acd.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/src_connmand-acd.Tpo src/$(DEPDIR)/src_connmand-acd.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/acd.c' object='src/src_connmand-acd.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(src_connmand_CFLAGS) $(CFLAGS) -c -o src/src_connmand-acd.o `test -f 'src/acd.c' || echo '$(srcdir)/'`src/acd.c
+
+src/src_connmand-acd.obj: src/acd.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(src_connmand_CFLAGS) $(CFLAGS) -MT src/src_connmand-acd.obj -MD -MP -MF src/$(DEPDIR)/src_connmand-acd.Tpo -c -o src/src_connmand-acd.obj `if test -f 'src/acd.c'; then $(CYGPATH_W) 'src/acd.c'; else $(CYGPATH_W) '$(srcdir)/src/acd.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/src_connmand-acd.Tpo src/$(DEPDIR)/src_connmand-acd.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/acd.c' object='src/src_connmand-acd.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(src_connmand_CFLAGS) $(CFLAGS) -c -o src/src_connmand-acd.obj `if test -f 'src/acd.c'; then $(CYGPATH_W) 'src/acd.c'; else $(CYGPATH_W) '$(srcdir)/src/acd.c'; fi`
+
 src/src_connmand-dnsproxy.o: src/dnsproxy.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(src_connmand_CFLAGS) $(CFLAGS) -MT src/src_connmand-dnsproxy.o -MD -MP -MF src/$(DEPDIR)/src_connmand-dnsproxy.Tpo -c -o src/src_connmand-dnsproxy.o `test -f 'src/dnsproxy.c' || echo '$(srcdir)/'`src/dnsproxy.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/src_connmand-dnsproxy.Tpo src/$(DEPDIR)/src_connmand-dnsproxy.Po
@@ -4186,6 +4293,62 @@ tools/tools_iptables_unit-iptables-unit.obj: tools/iptables-unit.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='tools/iptables-unit.c' object='tools/tools_iptables_unit-iptables-unit.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(tools_iptables_unit_CFLAGS) $(CFLAGS) -c -o tools/tools_iptables_unit-iptables-unit.obj `if test -f 'tools/iptables-unit.c'; then $(CYGPATH_W) 'tools/iptables-unit.c'; else $(CYGPATH_W) '$(srcdir)/tools/iptables-unit.c'; fi`
+
+src/unit_test_iptables-backtrace.o: src/backtrace.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(unit_test_iptables_CFLAGS) $(CFLAGS) -MT src/unit_test_iptables-backtrace.o -MD -MP -MF src/$(DEPDIR)/unit_test_iptables-backtrace.Tpo -c -o src/unit_test_iptables-backtrace.o `test -f 'src/backtrace.c' || echo '$(srcdir)/'`src/backtrace.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/unit_test_iptables-backtrace.Tpo src/$(DEPDIR)/unit_test_iptables-backtrace.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/backtrace.c' object='src/unit_test_iptables-backtrace.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(unit_test_iptables_CFLAGS) $(CFLAGS) -c -o src/unit_test_iptables-backtrace.o `test -f 'src/backtrace.c' || echo '$(srcdir)/'`src/backtrace.c
+
+src/unit_test_iptables-backtrace.obj: src/backtrace.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(unit_test_iptables_CFLAGS) $(CFLAGS) -MT src/unit_test_iptables-backtrace.obj -MD -MP -MF src/$(DEPDIR)/unit_test_iptables-backtrace.Tpo -c -o src/unit_test_iptables-backtrace.obj `if test -f 'src/backtrace.c'; then $(CYGPATH_W) 'src/backtrace.c'; else $(CYGPATH_W) '$(srcdir)/src/backtrace.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/unit_test_iptables-backtrace.Tpo src/$(DEPDIR)/unit_test_iptables-backtrace.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/backtrace.c' object='src/unit_test_iptables-backtrace.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(unit_test_iptables_CFLAGS) $(CFLAGS) -c -o src/unit_test_iptables-backtrace.obj `if test -f 'src/backtrace.c'; then $(CYGPATH_W) 'src/backtrace.c'; else $(CYGPATH_W) '$(srcdir)/src/backtrace.c'; fi`
+
+src/unit_test_iptables-log.o: src/log.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(unit_test_iptables_CFLAGS) $(CFLAGS) -MT src/unit_test_iptables-log.o -MD -MP -MF src/$(DEPDIR)/unit_test_iptables-log.Tpo -c -o src/unit_test_iptables-log.o `test -f 'src/log.c' || echo '$(srcdir)/'`src/log.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/unit_test_iptables-log.Tpo src/$(DEPDIR)/unit_test_iptables-log.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/log.c' object='src/unit_test_iptables-log.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(unit_test_iptables_CFLAGS) $(CFLAGS) -c -o src/unit_test_iptables-log.o `test -f 'src/log.c' || echo '$(srcdir)/'`src/log.c
+
+src/unit_test_iptables-log.obj: src/log.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(unit_test_iptables_CFLAGS) $(CFLAGS) -MT src/unit_test_iptables-log.obj -MD -MP -MF src/$(DEPDIR)/unit_test_iptables-log.Tpo -c -o src/unit_test_iptables-log.obj `if test -f 'src/log.c'; then $(CYGPATH_W) 'src/log.c'; else $(CYGPATH_W) '$(srcdir)/src/log.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/unit_test_iptables-log.Tpo src/$(DEPDIR)/unit_test_iptables-log.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/log.c' object='src/unit_test_iptables-log.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(unit_test_iptables_CFLAGS) $(CFLAGS) -c -o src/unit_test_iptables-log.obj `if test -f 'src/log.c'; then $(CYGPATH_W) 'src/log.c'; else $(CYGPATH_W) '$(srcdir)/src/log.c'; fi`
+
+unit/unit_test_iptables-test-iptables.o: unit/test-iptables.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(unit_test_iptables_CFLAGS) $(CFLAGS) -MT unit/unit_test_iptables-test-iptables.o -MD -MP -MF unit/$(DEPDIR)/unit_test_iptables-test-iptables.Tpo -c -o unit/unit_test_iptables-test-iptables.o `test -f 'unit/test-iptables.c' || echo '$(srcdir)/'`unit/test-iptables.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) unit/$(DEPDIR)/unit_test_iptables-test-iptables.Tpo unit/$(DEPDIR)/unit_test_iptables-test-iptables.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='unit/test-iptables.c' object='unit/unit_test_iptables-test-iptables.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(unit_test_iptables_CFLAGS) $(CFLAGS) -c -o unit/unit_test_iptables-test-iptables.o `test -f 'unit/test-iptables.c' || echo '$(srcdir)/'`unit/test-iptables.c
+
+unit/unit_test_iptables-test-iptables.obj: unit/test-iptables.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(unit_test_iptables_CFLAGS) $(CFLAGS) -MT unit/unit_test_iptables-test-iptables.obj -MD -MP -MF unit/$(DEPDIR)/unit_test_iptables-test-iptables.Tpo -c -o unit/unit_test_iptables-test-iptables.obj `if test -f 'unit/test-iptables.c'; then $(CYGPATH_W) 'unit/test-iptables.c'; else $(CYGPATH_W) '$(srcdir)/unit/test-iptables.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) unit/$(DEPDIR)/unit_test_iptables-test-iptables.Tpo unit/$(DEPDIR)/unit_test_iptables-test-iptables.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='unit/test-iptables.c' object='unit/unit_test_iptables-test-iptables.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(unit_test_iptables_CFLAGS) $(CFLAGS) -c -o unit/unit_test_iptables-test-iptables.obj `if test -f 'unit/test-iptables.c'; then $(CYGPATH_W) 'unit/test-iptables.c'; else $(CYGPATH_W) '$(srcdir)/unit/test-iptables.c'; fi`
+
+src/unit_test_iptables-iptables.o: src/iptables.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(unit_test_iptables_CFLAGS) $(CFLAGS) -MT src/unit_test_iptables-iptables.o -MD -MP -MF src/$(DEPDIR)/unit_test_iptables-iptables.Tpo -c -o src/unit_test_iptables-iptables.o `test -f 'src/iptables.c' || echo '$(srcdir)/'`src/iptables.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/unit_test_iptables-iptables.Tpo src/$(DEPDIR)/unit_test_iptables-iptables.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/iptables.c' object='src/unit_test_iptables-iptables.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(unit_test_iptables_CFLAGS) $(CFLAGS) -c -o src/unit_test_iptables-iptables.o `test -f 'src/iptables.c' || echo '$(srcdir)/'`src/iptables.c
+
+src/unit_test_iptables-iptables.obj: src/iptables.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(unit_test_iptables_CFLAGS) $(CFLAGS) -MT src/unit_test_iptables-iptables.obj -MD -MP -MF src/$(DEPDIR)/unit_test_iptables-iptables.Tpo -c -o src/unit_test_iptables-iptables.obj `if test -f 'src/iptables.c'; then $(CYGPATH_W) 'src/iptables.c'; else $(CYGPATH_W) '$(srcdir)/src/iptables.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/unit_test_iptables-iptables.Tpo src/$(DEPDIR)/unit_test_iptables-iptables.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/iptables.c' object='src/unit_test_iptables-iptables.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(unit_test_iptables_CFLAGS) $(CFLAGS) -c -o src/unit_test_iptables-iptables.obj `if test -f 'src/iptables.c'; then $(CYGPATH_W) 'src/iptables.c'; else $(CYGPATH_W) '$(srcdir)/src/iptables.c'; fi`
 
 vpn/plugins/vpn_connman_vpnd-openconnect.o: vpn/plugins/openconnect.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(vpn_connman_vpnd_CFLAGS) $(CFLAGS) -MT vpn/plugins/vpn_connman_vpnd-openconnect.o -MD -MP -MF vpn/plugins/$(DEPDIR)/vpn_connman_vpnd-openconnect.Tpo -c -o vpn/plugins/vpn_connman_vpnd-openconnect.o `test -f 'vpn/plugins/openconnect.c' || echo '$(srcdir)/'`vpn/plugins/openconnect.c
@@ -5118,6 +5281,13 @@ recheck: all
 unit/test-ippool.log: unit/test-ippool$(EXEEXT)
 	@p='unit/test-ippool$(EXEEXT)'; \
 	b='unit/test-ippool'; \
+	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
+	--log-file $$b.log --trs-file $$b.trs \
+	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
+	"$$tst" $(AM_TESTS_FD_REDIRECT)
+unit/test-iptables.log: unit/test-iptables$(EXEEXT)
+	@p='unit/test-iptables$(EXEEXT)'; \
+	b='unit/test-iptables'; \
 	$(am__check_pre) $(LOG_DRIVER) --test-name "$$f" \
 	--log-file $$b.log --trs-file $$b.trs \
 	$(am__common_driver_flags) $(AM_LOG_DRIVER_FLAGS) $(LOG_DRIVER_FLAGS) -- $(LOG_COMPILE) \
