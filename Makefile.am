@@ -55,7 +55,6 @@ stats_sources = src/nostats.c
 endif
 
 shared_sources = src/shared/util.h src/shared/util.c \
-		src/shared/netlink.h src/shared/netlink.c \
 		src/shared/arp.h src/shared/arp.c
 
 if DATAFILES
@@ -159,7 +158,7 @@ endif
 
 if NFTABLES
 src_connmand_SOURCES += src/firewall-nftables.c
-src_connmand_LDADD +=  @NFTABLES_LIBS@
+src_connmand_LDADD += @NFTABLES_LIBS@ @LIBMNL_LIBS@
 endif
 
 if VPN
@@ -182,7 +181,7 @@ vpn_connman_vpnd_SOURCES = $(builtin_vpn_sources) $(backtrace_sources) \
 			vpn/vpn-ipconfig.c src/inet.c vpn/vpn-rtnl.c \
 			src/dbus.c src/storage.c src/ipaddress.c src/agent.c \
 			vpn/vpn-agent.c vpn/vpn-agent.h src/inotify.c \
-			vpn/vpn-config.c
+			vpn/vpn-config.c vpn/vpn-settings.c
 
 vpn_connman_vpnd_LDADD = gdbus/libgdbus-internal.la $(builtin_vpn_libadd) \
 				@GLIB_LIBS@ @DBUS_LIBS@ @GNUTLS_LIBS@ \
@@ -287,8 +286,8 @@ src_connmand_CFLAGS += @XTABLES_CFLAGS@
 endif
 
 if NFTABLES
-AM_CFLAGS += @NFTABLES_CFLAGS@
-src_connmand_CFLAGS += @NFTABLES_CFLAGS@
+AM_CFLAGS += @NFTABLES_CFLAGS@ @LIBMNL_CFLAGS@
+src_connmand_CFLAGS += @NFTABLES_CFLAGS@ @LIBMNL_CFLAGS@
 endif
 
 EXTRA_DIST += vpn/vpn-dbus.conf vpn/vpn-polkit.conf
@@ -340,7 +339,7 @@ noinst_PROGRAMS += tools/supplicant-test \
 			tools/tap-test tools/wpad-test \
 			tools/stats-tool tools/private-network-test \
 			tools/session-test \
-			tools/dnsproxy-test tools/netlink-test
+			tools/dnsproxy-test
 
 tools_supplicant_test_SOURCES = tools/supplicant-test.c \
 			tools/supplicant-dbus.h tools/supplicant-dbus.c \
@@ -412,10 +411,6 @@ endif
 
 tools_dnsproxy_test_SOURCES = tools/dnsproxy-test.c
 tools_dnsproxy_test_LDADD = @GLIB_LIBS@
-
-tools_netlink_test_SOURCES = src/shared/util.c src/shared/netlink.c \
-		tools/netlink-test.c
-tools_netlink_test_LDADD = @GLIB_LIBS@
 
 endif
 

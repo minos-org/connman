@@ -85,7 +85,7 @@ int __vpn_provider_create_from_config(GHashTable *settings,
 int __vpn_provider_set_string_immutable(struct vpn_provider *provider,
 					const char *key, const char *value);
 DBusMessage *__vpn_provider_get_connections(DBusMessage *msg);
-const char * __vpn_provider_get_ident(struct vpn_provider *provider);
+const char *vpn_provider_get_ident(struct vpn_provider *provider);
 struct vpn_provider *__vpn_provider_lookup(const char *identifier);
 int __vpn_provider_indicate_state(struct vpn_provider *provider,
 					enum vpn_provider_state state);
@@ -116,3 +116,19 @@ char *__vpn_config_get_string(GKeyFile *key_file,
         const char *group_name, const char *key, GError **error);
 char **__vpn_config_get_string_list(GKeyFile *key_file,
         const char *group_name, const char *key, gsize *length, GError **error);
+
+int __vpn_settings_init(const char *file);
+void __vpn_settings_cleanup(void);
+GKeyFile *__vpn_settings_load_config(const char *file);
+unsigned int __vpn_settings_get_timeout_inputreq(void);
+
+struct vpn_plugin_data;
+
+int vpn_settings_parse_vpn_plugin_config(const char* plugin_name);
+void vpn_settings_delete_vpn_plugin_config(const char *name);
+struct vpn_plugin_data* vpn_settings_get_vpn_plugin_config(const char *name);
+
+const char * vpn_settings_get_binary_user(struct vpn_plugin_data *data);
+const char * vpn_settings_get_binary_group(struct vpn_plugin_data *data);
+char ** vpn_settings_get_binary_supplementary_groups(
+	struct vpn_plugin_data *data);

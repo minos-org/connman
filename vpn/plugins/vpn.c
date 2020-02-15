@@ -33,6 +33,9 @@
 #include <sys/types.h>
 #include <linux/if_tun.h>
 #include <net/if.h>
+#include <sys/types.h>
+#include <pwd.h>
+#include <grp.h>
 
 #include <dbus/dbus.h>
 
@@ -47,6 +50,7 @@
 #include "../vpn-provider.h"
 
 #include "vpn.h"
+#include "../vpn.h"
 
 struct vpn_data {
 	struct vpn_provider *provider;
@@ -85,8 +89,10 @@ static int stop_vpn(struct vpn_provider *provider)
 	vpn_driver_data = g_hash_table_lookup(driver_hash, name);
 
 	if (vpn_driver_data && vpn_driver_data->vpn_driver &&
-			vpn_driver_data->vpn_driver->flags == VPN_FLAG_NO_TUN)
+			vpn_driver_data->vpn_driver->flags & VPN_FLAG_NO_TUN) {
+		vpn_driver_data->vpn_driver->disconnect(data->provider);
 		return 0;
+	}
 
 	memset(&ifr, 0, sizeof(ifr));
 	ifr.ifr_flags = data->tun_flags | IFF_NO_PI;
@@ -284,7 +290,7 @@ static DBusMessage *vpn_notify(struct connman_task *task,
 			 * We need to remove first the old address, just
 			 * replacing the old address will not work as expected
 			 * because the old address will linger in the interface
-			 * and not disapper so the clearing is needed here.
+			 * and not disappear so the clearing is needed here.
 			 *
 			 * Also the state must change, otherwise the routes
 			 * will not be set properly.
@@ -415,12 +421,155 @@ exist_err:
 	return ret;
 }
 
+static gboolean is_numeric(const char *str)
+{
+	gint i;
+
+	if(!str || !(*str))
+		return false;
+
+	for(i = 0; str[i] ; i++) {
+		if(!g_ascii_isdigit(str[i]))
+			return false;
+	}
+
+	return true;
+}
+
+static gint get_gid(const char *group_name)
+{
+	gint gid = -1;
+	struct group *grp;
+
+	if(!group_name || !(*group_name))
+		return gid;
+
+	if (is_numeric(group_name)) {
+		gid_t group_id = (gid_t)g_ascii_strtoull(group_name, NULL, 10);
+		grp = getgrgid(group_id);
+	} else {
+		grp = getgrnam(group_name);
+	}
+
+	if (grp)
+		gid = grp->gr_gid;
+
+	return gid;
+}
+
+static gint get_uid(const char *user_name)
+{
+	gint uid = -1;
+	struct passwd *pw;
+
+	if(!user_name || !(*user_name))
+		return uid;
+
+	if (is_numeric(user_name)) {
+		uid_t user_id = (uid_t)g_ascii_strtoull(user_name, NULL, 10);
+		pw = getpwuid(user_id);
+	} else {
+		pw = getpwnam(user_name);
+	}
+
+	if (pw)
+		uid = pw->pw_uid;
+
+	return uid;
+}
+
+static gint get_supplementary_gids(gchar **groups, gid_t **gid_list)
+{
+	gint group_count = 0;
+	gid_t *list = NULL;
+	int i;
+
+	if (groups) {
+		for(i = 0; groups[i]; i++) {
+			group_count++;
+
+			list = (gid_t*)g_try_realloc(list,
+						sizeof(gid_t) * group_count);
+
+			if (!list) {
+				DBG("cannot allocate supplementary group list");
+				break;
+			}
+
+			list[i] = get_gid(groups[i]);
+		}
+	}
+
+	*gid_list = list;
+
+	return group_count;
+}
+
+static void vpn_task_setup(gpointer user_data)
+{
+	struct vpn_plugin_data *data;
+	gint uid;
+	gint gid;
+	gid_t *gid_list = NULL;
+	size_t gid_list_size;
+	const gchar *user;
+	const gchar *group;
+	gchar **suppl_groups;
+
+	data = user_data;
+	user = vpn_settings_get_binary_user(data);
+	group = vpn_settings_get_binary_group(data);
+	suppl_groups = vpn_settings_get_binary_supplementary_groups(data);
+
+	uid = get_uid(user);
+	gid = get_gid(group);
+	gid_list_size = get_supplementary_gids(suppl_groups, &gid_list);
+
+	DBG("vpn_task_setup uid:%d gid:%d supplementary group list size:%zu",
+					uid, gid, gid_list_size);
+
+
+	/* Change group if proper group name was set, requires CAP_SETGID.*/
+	if (gid > 0 && setgid(gid))
+		connman_error("error setting gid %d %s", gid, strerror(errno));
+
+	/* Set the supplementary groups if list exists, requires CAP_SETGID. */
+	if (gid_list_size && gid_list && setgroups(gid_list_size, gid_list))
+		connman_error("error setting gid list %s", strerror(errno));
+
+	/* Change user for the task if set, requires CAP_SETUID */
+	if (uid > 0 && setuid(uid))
+		connman_error("error setting uid %d %s", uid, strerror(errno));
+}
+
+
+static gboolean update_provider_state(gpointer data)
+{
+	struct vpn_provider *provider = data;
+	struct vpn_data *vpn_data;
+	int index;
+
+	DBG("");
+
+	vpn_data = vpn_provider_get_data(provider);
+
+	index = vpn_provider_get_index(provider);
+	DBG("index to watch %d", index);
+	vpn_provider_ref(provider);
+	vpn_data->watch = vpn_rtnl_add_newlink_watch(index,
+						vpn_newlink, provider);
+	connman_inet_ifup(index);
+
+	return FALSE;
+}
+
 static int vpn_connect(struct vpn_provider *provider,
 			vpn_provider_connect_cb_t cb,
 			const char *dbus_sender, void *user_data)
 {
 	struct vpn_data *data = vpn_provider_get_data(provider);
 	struct vpn_driver_data *vpn_driver_data;
+	struct vpn_plugin_data *vpn_plugin_data;
 	const char *name;
 	int ret = 0, tun_flags = IFF_TUN;
 	enum vpn_state state = VPN_STATE_UNKNOWN;
@@ -469,7 +618,7 @@ static int vpn_connect(struct vpn_provider *provider,
 		goto exist_err;
 	}
 
-	if (vpn_driver_data->vpn_driver->flags != VPN_FLAG_NO_TUN) {
+	if (!(vpn_driver_data->vpn_driver->flags & VPN_FLAG_NO_TUN)) {
 		if (vpn_driver_data->vpn_driver->device_flags) {
 			tun_flags = vpn_driver_data->vpn_driver->device_flags(provider);
 		}
@@ -478,7 +627,30 @@ static int vpn_connect(struct vpn_provider *provider,
 			goto exist_err;
 	}
 
-	data->task = connman_task_create(vpn_driver_data->program);
+
+	if (vpn_driver_data && vpn_driver_data->vpn_driver &&
+			vpn_driver_data->vpn_driver->flags & VPN_FLAG_NO_DAEMON) {
+
+		ret = vpn_driver_data->vpn_driver->connect(provider,
+						NULL, NULL, NULL, NULL, NULL);
+		if (ret) {
+			stop_vpn(provider);
+			goto exist_err;
+		}
+
+		DBG("%s started with dev %s",
+			vpn_driver_data->provider_driver.name, data->if_name);
+
+		data->state = VPN_STATE_CONNECT;
+
+		g_timeout_add(1, update_provider_state, provider);
+		return -EINPROGRESS;
+	}
+
+	vpn_plugin_data =
+		vpn_settings_get_vpn_plugin_config(vpn_driver_data->name);
+	data->task = connman_task_create(vpn_driver_data->program,
+					vpn_task_setup, vpn_plugin_data);
 
 	if (!data->task) {
 		ret = -ENOMEM;
@@ -553,7 +725,15 @@ static int vpn_disconnect(struct vpn_provider *provider)
 	}
 
 	data->state = VPN_STATE_DISCONNECT;
-	connman_task_stop(data->task);
+
+	if (!vpn_driver_data->vpn_driver->disconnect) {
+		DBG("Driver has no disconnect() implementation, set provider "
+					"state to disconnect.");
+		vpn_provider_set_state(provider, VPN_PROVIDER_STATE_DISCONNECT);
+	}
+
+	if (data->task)
+		connman_task_stop(data->task);
 
 	return 0;
 }
@@ -577,7 +757,8 @@ static int vpn_remove(struct vpn_provider *provider)
 		data->watch = 0;
 	}
 
-	connman_task_stop(data->task);
+	if (data->task)
+		connman_task_stop(data->task);
 
 	g_usleep(G_USEC_PER_SEC);
 	stop_vpn(provider);
@@ -643,6 +824,9 @@ int vpn_register(const char *name, struct vpn_driver *vpn_driver,
 	data->name = name;
 	data->program = program;
 
+	if (vpn_settings_parse_vpn_plugin_config(data->name) != 0)
+		DBG("No configuration provided for VPN plugin %s", data->name);
+
 	data->vpn_driver = vpn_driver;
 
 	data->provider_driver.name = name;
@@ -681,6 +865,7 @@ void vpn_unregister(const char *name)
 		return;
 
 	vpn_provider_driver_unregister(&data->provider_driver);
+	vpn_settings_delete_vpn_plugin_config(name);
 
 	g_hash_table_remove(driver_hash, name);
 

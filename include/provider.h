@@ -111,8 +111,8 @@ int connman_provider_set_domain(struct connman_provider *provider,
 				const char *domain);
 int connman_provider_set_nameservers(struct connman_provider *provider,
 					char * const *nameservers);
-int connman_provider_append_route(struct connman_provider *provider,
-					const char *key, const char *value);
+void connman_provider_set_autoconnect(struct connman_provider *provider,
+								bool flag);
 
 const char *connman_provider_get_driver_name(struct connman_provider *provider);
 const char *connman_provider_get_save_group(struct connman_provider *provider);

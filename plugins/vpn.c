@@ -477,6 +477,9 @@ static int errorstr2val(const char *error) {
 	if (g_strcmp0(error, CONNMAN_ERROR_INTERFACE ".AlreadyConnected") == 0)
 		return -EISCONN;
 
+	if (g_strcmp0(error, CONNMAN_ERROR_INTERFACE ".OperationCanceled") == 0)
+		return -ECANCELED;
+
 	return -ECONNREFUSED;
 }
 
@@ -490,16 +493,34 @@ static void connect_reply(DBusPendingCall *call, void *user_data)
 	if (!dbus_pending_call_get_completed(call))
 		return;
 
+	if (call != data->call) {
+		connman_error("invalid call %p to VPN connect_reply data %p "
+					" call %p ", call, data, data->call);
+		dbus_pending_call_unref(call);
+		return;
+	}
+
 	DBG("user_data %p path %s", user_data, cb_data ? cb_data->path : NULL);
 
 	reply = dbus_pending_call_steal_reply(call);
+	if (!reply)
+		goto out;
 
 	dbus_error_init(&error);
 
 	if (dbus_set_error_from_message(&error, reply)) {
 		int err = errorstr2val(error.name);
 
-		if (err != -EINPROGRESS) {
+		/*
+		 * ECANCELED means that user has canceled authentication
+		 * dialog. That's not really an error, it's part of a normal
+		 * workflow. We also take it as a request to turn autoconnect
+		 * off, in case if it was on.
+		 */
+		if (err == -ECANCELED) {
+			DBG("%s connect canceled", data->path);
+			connman_provider_set_autoconnect(data->provider, false);
+		} else if (err != -EINPROGRESS) {
 			connman_error("Connect reply: %s (%s)", error.message,
 								error.name);
 			DBG("data %p cb_data %p", data, cb_data);
@@ -522,7 +543,11 @@ static void connect_reply(DBusPendingCall *call, void *user_data)
 
 	dbus_message_unref(reply);
 
-	dbus_pending_call_unref(call);
+out:
+	dbus_pending_call_unref(data->call);
+
+	data->call = NULL;
+	data->connect_pending = false;
 }
 
 static int connect_provider(struct connection_data *data, void *user_data,
@@ -541,7 +566,10 @@ static int connect_provider(struct connection_data *data, void *user_data,
 		return -EINVAL;
 	}
 
-	data->connect_pending = false;
+	if (data->connect_pending && data->call) {
+		connman_info("connect already pending");
+		return -EALREADY;
+	}
 
 	/* We need to pass original dbus sender to connman-vpnd,
 	 * use a Connect2 method for that if the original dbus sender is set.
@@ -574,6 +602,14 @@ static int connect_provider(struct connection_data *data, void *user_data,
 		dbus_message_unref(message);
 		return -EINVAL;
 	}
+
+	if (data->call) {
+		dbus_pending_call_cancel(data->call);
+		dbus_pending_call_unref(data->call);
+	}
+
+	data->call = call;
+	data->connect_pending = true;
 
 	if (cb_data) {
 		g_free(cb_data->path);
@@ -984,6 +1020,8 @@ static int disconnect_provider(struct connection_data *data)
 
 static int provider_disconnect(struct connman_provider *provider)
 {
+	int err = 0;
+
 	struct connection_data *data;
 
 	DBG("provider %p", provider);
@@ -993,9 +1031,17 @@ static int provider_disconnect(struct connman_provider *provider)
 		return -EINVAL;
 
 	if (provider_is_connected(data))
-		return disconnect_provider(data);
+		err = disconnect_provider(data);
 
-	return 0;
+	if (data->call) {
+		dbus_pending_call_cancel(data->call);
+		dbus_pending_call_unref(data->call);
+		data->call = NULL;
+	}
+
+	data->connect_pending = false;
+
+	return err;
 }
 
 static void configuration_create_reply(DBusPendingCall *call, void *user_data)
@@ -1909,13 +1955,14 @@ static bool vpn_is_valid_transport(struct connman_service *transport)
 
 static void vpn_disconnect_check_provider(struct connection_data *data)
 {
-	if (data->service_ident && provider_is_connected(data)) {
+	if (provider_is_connected(data)) {
+		/* With NULL service ident NULL is returned immediately */
 		struct connman_service *service =
 			connman_service_lookup_from_identifier
 						(data->service_ident);
 
 		if (!vpn_is_valid_transport(service)) {
-			disconnect_provider(data);
+			connman_provider_disconnect(data->provider);
 		}
 	}
 }

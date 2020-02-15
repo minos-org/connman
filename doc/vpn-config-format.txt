@@ -32,7 +32,8 @@ Each provisioned provider must start with the [provider_*] tag.
 Replace * with an identifier unique to the config file.
 
 Allowed fields:
-- Type: Provider type. Value of OpenConnect, OpenVPN, VPNC, L2TP or PPTP
+- Type: Provider type. Value of OpenConnect, OpenVPN, VPNC, L2TP, PPTP or
+        WireGuard
 
 VPN related parameters (M = mandatory, O = optional):
 - Name: A user defined name for the VPN (M)
@@ -54,8 +55,9 @@ OpenConnect VPN supports following options (see openconnect(8) for details):
  OpenConnect.CACert     --cafile           File containing other Certificate
                                            Authorities in addition to the ones
                                            in the system trust database (O)
- OpenConnect.ClientCert --certificate      Client certificate file, if needed
-                                           by web authentication (O)
+ OpenConnect.ClientCert --certificate      Client certificate file, needed
+                                           by web authentication when AuthType
+                                           is set as "publickey" (O)
  VPN.MTU                --mtu              Request MTU from server as the MTU
                                            of the tunnel (O)
  OpenConnect.Cookie     --cookie-on-stdin  Cookie received as a result of the
@@ -68,8 +70,73 @@ OpenConnect VPN supports following options (see openconnect(8) for details):
                                            Only usable for extremely simple VPN
                                            configurations and should normally
                                            be set only via the VPN Agent API.
-If OpenConnect.Cookie or OpenConnect.ServerCert are missing, the VPN Agent will
-be contacted to supply the information.
+ OpenConnect.AllowSelfSignedCert none      Additional option to define if self
+                                           signed server certificates are
+                                           allowed. Boolean string and defaults
+                                           to false, value "true" enables the
+                                           option. Affects to the OpenConnect
+                                           internal function only: --servercert
+                                           is not added to startup parameters
+                                           and receiving self signed cert from
+                                           server terminates the connection if
+                                           set as false (or omitted) (O)
+ OpenConnect.AuthType                      Type of authentication used with
+                                           OpenConnect. Applicable values are
+                                           "cookie", "cookie_with_userpass",
+                                           "userpass", "publickey" and
+                                           "pkcs". Value "cookie" is basic
+                                           cookie based authentication. Value
+                                           "cookie_with_userpass" means that
+                                           credentials are used to retrieve the
+                                           connection cookie, which hides the
+                                           username from commandline. With
+                                           value "userpass" username and
+                                           password are used. Value "publickey"
+                                           requires CACert and UserPrivateKey
+                                           to be set. Value "pkcs" uses the
+                                           PKCSClientCert and requests password
+                                           input. Defaults to "cookie" (O)
+    cookie              --cookie-on-stdin  Default cookie based authentication
+    cookie_with_userpass                   Two phased connection, first
+        authentication: --cookieonly       authenticate with credentials then
+                        --passwd-on-stdin  use cookie for connection. Username
+                        --user             is hidden from commandline during
+        connection:     --cookie-on-stdin  connection.
+    userpass            --passwd-on-stdin  Credential based authentication,
+                        --user             username is visible on commandline.
+    publickey           --clientcert       Non-encrypted client certificate and
+                        --sslkey           private key file is used for auth.
+    pkcs                --cliencert        Authenticate with PKCS#1/PKCS#8/
+                                           PKCS#12 client certificate.
+ OpenConnect.DisableIPv6 --disable-ipv6    Do not ask for IPv6 connectivity.
+                                           Boolean string and defaults to
+                                           false, value "true" enables the
+                                           option (O)
+ OpenConnect.NoDTLS      --no-dtls         Disable DTLS and ESP (O)
+ OpenConnect.NoHTTPKeepalive --no-http-keepalive    Disable HTTP connection
+                                           re-use to workaround issues with
+                                           some servers. Boolean string and
+                                           defaults to false, value "true"
+                                           enables the option (O)
+ OpenConnect.PKCSClientCert --certificate  Certificate and private key in
+                                           a PKCS#1/PKCS#8/PKCS#12 structure.
+                                           Needed when AuthType is "pkcs" (O)
+ OpenConnect.Usergroup  --usergroup        Set login usergroup on remote server
+                                           (O)
+ OpenConnect.UserPrivateKey --sslkey       SSL private key file needed by web
+                                           authentication when AuthType is set
+                                           as "publickey" (O)
+
+The VPN agent will be contacted to supply the information based on the
+authentication type as follows:
+ Authentication type    Information requested       Saved with name
+ cookie                 OpenConnect.Cookie          OpenConnect.Cookie
+ cookie_with_userpass   Username                    OpenConnect.Username
+                        Password                    OpenConnect.Password
+ userpass               Username                    OpenConnect.Username
+                        Password                    OpenConnect.Password
+ publickey              <none>
+ pkcs                   OpenConnect.PKCSPassword    OpenConnect.PKCSPassword
 
 OpenVPN VPN supports following options (see openvpn(8) for details):
  Option name            OpenVPN option   Description
@@ -92,6 +159,11 @@ OpenVPN VPN supports following options (see openvpn(8) for details):
                                          OpenVPN 2.3+.
  OpenVPN.TLSAuth        sub-option of --tls-remote (O)
  OpenVPN.TLSAuthDir     sub-option of --tls-remote (O)
+ OpenVPN.TLSCipher      --tls-cipher     Add an additional layer of HMAC
+                                         authentication on top of the TLS
+                                         control channel to mitigate DoS attacks
+                                         and attacks on the TLS stack. Static
+                                         key file given as parameter (0)
  OpenVPN.Cipher         --cipher         Encrypt packets with cipher algorithm
                                          given as parameter (O)
  OpenVPN.Auth           --auth           Authenticate  packets with HMAC using
@@ -182,7 +254,6 @@ L2TP VPN supports following options (see xl2tpd.conf(5) and pppd(8) for details)
  PPPD.ReqMPPEStateful mppe-stateful         Allow MPPE to use stateful mode (O)
  PPPD.NoVJ           novj                   No Van Jacobson compression (O)
 
-
 PPTP VPN supports following options (see pptp(8) and pppd(8) for details)
  Option name         pptp config value    Description
  PPTP.User           -                    PPTP user name, asked from the user
@@ -207,6 +278,19 @@ PPTP VPN supports following options (see pptp(8) and pppd(8) for details)
  PPPD.RequirMPPEStateful mppe-stateful    Allow MPPE to use stateful mode (O)
  PPPD.NoVJ           novj                 No Van Jacobson compression (O)
 
+WireGuard VPN supports following options
+ Option name                              Description
+ WireGuard.Address                        Internal IP address (local/netmask/peer)
+ WireGuard.ListPort                       Local listen port (optional)
+ WireGuard.DNS                            List of nameservers separated
+                                          by comma (optional)
+ WireGuard.PrivateKey                     Private key of interface
+ WireGuard.PublicKey                      Public key of peer
+ WireGuard.PresharedKey                   Preshared key of peer (optional)
+ WireGuard.AllowedIPs                     See Cryptokey Routing
+ WireGuard.EndpointPort                   Endpoint listen port (optional)
+ WireGuard.PersistentKeepalive            Keep alive in seconds (optional)
+
 
 Example
 =======
@@ -230,6 +314,7 @@ L2TP.User = username
 
 [provider_openconnect]
 Type = OpenConnect
+AuthType = pkcs
 Name = Connection to corporate network using Cisco VPN
 Host = 7.6.5.4
 Domain = corporate.com
@@ -245,3 +330,16 @@ Domain = my.home.network
 OpenVPN.CACert = /etc/certs/cacert.pem
 OpenVPN.Cert = /etc/certs/cert.pem
 OpenVPN.Key = /etc/certs/cert.key
+
+[provider_wireguard]
+Type = WireGuard
+Name = Wireguard VPN Tunnel
+Host = 3.2.5.6
+Domain = my.home.network
+WireGuard.Address = 10.2.0.2/24
+WireGuard.ListenPort = 47824
+WireGuard.DNS = 10.2.0.1
+WireGuard.PrivateKey = qKIj010hDdWSjQQyVCnEgthLXusBgm3I6HWrJUaJymc=
+WireGuard.PublicKey = zzqUfWGIil6QxrAGz77HE5BGUEdD2PgHYnCg3CDKagE=
+WireGuard.AllowedIPs = 0.0.0.0/0, ::/0
+WireGuard.EndpointPort = 51820

@@ -35,9 +35,15 @@
 #include <connman/setting.h>
 #include <connman/agent.h>
 
+#include "src/shared/util.h"
+
 #include "connman.h"
 
 #define CONNECT_TIMEOUT		120
+
+#define VPN_AUTOCONNECT_TIMEOUT_DEFAULT 1
+#define VPN_AUTOCONNECT_TIMEOUT_STEP 30
+#define VPN_AUTOCONNECT_TIMEOUT_ATTEMPTS_THRESHOLD 270
 
 static DBusConnection *connection = NULL;
 
@@ -80,7 +86,7 @@ struct connman_service {
 	bool hidden;
 	bool ignore;
 	bool autoconnect;
-	GTimeVal modified;
+	struct timeval modified;
 	unsigned int order;
 	char *name;
 	char *passphrase;
@@ -144,6 +150,7 @@ static struct connman_ipconfig *create_ip4config(struct connman_service *service
 static struct connman_ipconfig *create_ip6config(struct connman_service *service,
 		int index);
 static void dns_changed(struct connman_service *service);
+static void vpn_auto_connect(void);
 
 struct find_data {
 	const char *path;
@@ -414,7 +421,7 @@ int __connman_service_load_modifiable(struct connman_service *service)
 	str = g_key_file_get_string(keyfile,
 				service->identifier, "Modified", NULL);
 	if (str) {
-		g_time_val_from_iso8601(str, &service->modified);
+		util_iso8601_to_timeval(str, &service->modified);
 		g_free(str);
 	}
 
@@ -531,7 +538,7 @@ static int service_load(struct connman_service *service)
 	str = g_key_file_get_string(keyfile,
 				service->identifier, "Modified", NULL);
 	if (str) {
-		g_time_val_from_iso8601(str, &service->modified);
+		util_iso8601_to_timeval(str, &service->modified);
 		g_free(str);
 	}
 
@@ -624,7 +631,7 @@ static int service_save(struct connman_service *service)
 	if (service->new_service)
 		return -ESRCH;
 
-	keyfile = __connman_storage_open_service(service->identifier);
+	keyfile = g_key_file_new();
 	if (!keyfile)
 		return -EIO;
 
@@ -686,9 +693,6 @@ static int service_save(struct connman_service *service)
 		g_key_file_set_boolean(keyfile, service->identifier,
 					"Favorite", service->favorite);
 
-		g_key_file_remove_key(keyfile, service->identifier,
-				"Failure", NULL);
-
 		/* fall through */
 
 	case CONNMAN_SERVICE_TYPE_ETHERNET:
@@ -698,57 +702,48 @@ static int service_save(struct connman_service *service)
 		break;
 	}
 
-	str = g_time_val_to_iso8601(&service->modified);
+	str = util_timeval_to_iso8601(&service->modified);
 	if (str) {
 		g_key_file_set_string(keyfile, service->identifier,
-							"Modified", str);
+				"Modified", str);
 		g_free(str);
 	}
 
 	if (service->passphrase && strlen(service->passphrase) > 0)
 		g_key_file_set_string(keyfile, service->identifier,
-					"Passphrase", service->passphrase);
-	else
-		g_key_file_remove_key(keyfile, service->identifier,
-							"Passphrase", NULL);
+				"Passphrase", service->passphrase);
 
 	if (service->ipconfig_ipv4)
 		__connman_ipconfig_save(service->ipconfig_ipv4, keyfile,
-					service->identifier, "IPv4.");
+				service->identifier, "IPv4.");
 
 	if (service->ipconfig_ipv6)
 		__connman_ipconfig_save(service->ipconfig_ipv6, keyfile,
-						service->identifier, "IPv6.");
+				service->identifier, "IPv6.");
 
 	if (service->nameservers_config) {
 		guint len = g_strv_length(service->nameservers_config);
 
 		g_key_file_set_string_list(keyfile, service->identifier,
-								"Nameservers",
+				"Nameservers",
 				(const gchar **) service->nameservers_config, len);
-	} else
-	g_key_file_remove_key(keyfile, service->identifier,
-							"Nameservers", NULL);
+	}
 
 	if (service->timeservers_config) {
 		guint len = g_strv_length(service->timeservers_config);
 
 		g_key_file_set_string_list(keyfile, service->identifier,
-								"Timeservers",
+				"Timeservers",
 				(const gchar **) service->timeservers_config, len);
-	} else
-		g_key_file_remove_key(keyfile, service->identifier,
-							"Timeservers", NULL);
+	}
 
 	if (service->domains) {
 		guint len = g_strv_length(service->domains);
 
 		g_key_file_set_string_list(keyfile, service->identifier,
-								"Domains",
+				"Domains",
 				(const gchar **) service->domains, len);
-	} else
-		g_key_file_remove_key(keyfile, service->identifier,
-							"Domains", NULL);
+	}
 
 	cst_str = proxymethod2string(service->proxy_config);
 	if (cst_str)
@@ -761,9 +756,7 @@ static int service_save(struct connman_service *service)
 		g_key_file_set_string_list(keyfile, service->identifier,
 				"Proxy.Servers",
 				(const gchar **) service->proxies, len);
-	} else
-		g_key_file_remove_key(keyfile, service->identifier,
-						"Proxy.Servers", NULL);
+	}
 
 	if (service->excludes) {
 		guint len = g_strv_length(service->excludes);
@@ -771,34 +764,25 @@ static int service_save(struct connman_service *service)
 		g_key_file_set_string_list(keyfile, service->identifier,
 				"Proxy.Excludes",
 				(const gchar **) service->excludes, len);
-	} else
-		g_key_file_remove_key(keyfile, service->identifier,
-						"Proxy.Excludes", NULL);
+	}
 
 	if (service->pac && strlen(service->pac) > 0)
 		g_key_file_set_string(keyfile, service->identifier,
-					"Proxy.URL", service->pac);
-	else
-		g_key_file_remove_key(keyfile, service->identifier,
-							"Proxy.URL", NULL);
+				"Proxy.URL", service->pac);
 
 	if (service->mdns_config)
 		g_key_file_set_boolean(keyfile, service->identifier,
-								"mDNS", TRUE);
-	else
-		g_key_file_remove_key(keyfile, service->identifier,
-								"mDNS", NULL);
+				"mDNS", TRUE);
 
 	if (service->hidden_service)
-		g_key_file_set_boolean(keyfile, service->identifier, "Hidden",
-									TRUE);
+		g_key_file_set_boolean(keyfile, service->identifier,
+				"Hidden", TRUE);
 
 	if (service->config_file && strlen(service->config_file) > 0)
 		g_key_file_set_string(keyfile, service->identifier,
 				"Config.file", service->config_file);
 
-	if (service->config_entry &&
-					strlen(service->config_entry) > 0)
+	if (service->config_entry && strlen(service->config_entry) > 0)
 		g_key_file_set_string(keyfile, service->identifier,
 				"Config.ident", service->config_entry);
 
@@ -1170,11 +1154,12 @@ int __connman_service_nameserver_append(struct connman_service *service,
 	else
 		nameservers = service->nameservers;
 
-	for (i = 0; nameservers && nameservers[i]; i++)
-		if (g_strcmp0(nameservers[i], nameserver) == 0)
-			return -EEXIST;
-
 	if (nameservers) {
+		for (i = 0; nameservers[i]; i++) {
+			if (g_strcmp0(nameservers[i], nameserver) == 0)
+				return -EEXIST;
+		}
+
 		len = g_strv_length(nameservers);
 		nameservers = g_try_renew(char *, nameservers, len + 2);
 	} else {
@@ -1388,6 +1373,56 @@ void __connman_service_nameserver_del_routes(struct connman_service *service,
 		nameserver_del_routes(index, service->nameservers, type);
 }
 
+static bool check_proxy_setup(struct connman_service *service)
+{
+	/*
+	 * We start WPAD if we haven't got a PAC URL from DHCP and
+	 * if our proxy manual configuration is either empty or set
+	 * to AUTO with an empty URL.
+	 */
+
+	if (service->proxy != CONNMAN_SERVICE_PROXY_METHOD_UNKNOWN)
+		return true;
+
+	if (service->proxy_config != CONNMAN_SERVICE_PROXY_METHOD_UNKNOWN &&
+		(service->proxy_config != CONNMAN_SERVICE_PROXY_METHOD_AUTO ||
+			service->pac))
+		return true;
+
+	if (__connman_wpad_start(service) < 0) {
+		service->proxy = CONNMAN_SERVICE_PROXY_METHOD_DIRECT;
+		__connman_notifier_proxy_changed(service);
+		return true;
+	}
+
+	return false;
+}
+
+static void cancel_online_check(struct connman_service *service)
+{
+	if (service->online_timeout == 0)
+		return;
+
+	g_source_remove(service->online_timeout);
+	service->online_timeout = 0;
+	connman_service_unref(service);
+}
+
+static void start_online_check(struct connman_service *service,
+				enum connman_ipconfig_type type)
+{
+	if (!connman_setting_get_bool("EnableOnlineCheck")) {
+		connman_info("Online check disabled. "
+			"Default service remains in READY state.");
+		return;
+	}
+
+	if (type != CONNMAN_IPCONFIG_TYPE_IPV4 || check_proxy_setup(service)) {
+		cancel_online_check(service);
+		__connman_service_wispr_start(service, type);
+	}
+}
+
 static void address_updated(struct connman_service *service,
 			enum connman_ipconfig_type type)
 {
@@ -1395,6 +1430,7 @@ static void address_updated(struct connman_service *service,
 			service == connman_service_get_default()) {
 		nameserver_remove_all(service, type);
 		nameserver_add_all(service, type);
+		start_online_check(service, type);
 
 		__connman_timeserver_sync(service);
 	}
@@ -1538,6 +1574,16 @@ static void default_changed(void)
 		if (service->domainname &&
 				connman_setting_get_bool("AllowDomainnameUpdates"))
 			__connman_utsname_set_domainname(service->domainname);
+
+		/*
+		 * Connect VPN automatically when new default service
+		 * is set and connected, unless new default is VPN
+		 */
+		if (is_connected(service->state) &&
+				service->type != CONNMAN_SERVICE_TYPE_VPN) {
+			DBG("running vpn_auto_connect");
+			vpn_auto_connect();
+		}
 	}
 
 	__connman_notifier_default_changed(service);
@@ -1636,6 +1682,18 @@ static void autoconnect_changed(struct connman_service *service)
 	connman_dbus_property_changed_basic(service->path,
 				CONNMAN_SERVICE_INTERFACE, "AutoConnect",
 				DBUS_TYPE_BOOLEAN, &autoconnect);
+}
+
+bool connman_service_set_autoconnect(struct connman_service *service,
+							bool autoconnect)
+{
+	if (service->autoconnect == autoconnect)
+		return false;
+
+	service->autoconnect = autoconnect;
+	autoconnect_changed(service);
+
+	return true;
 }
 
 static void append_security(DBusMessageIter *iter, void *user_data)
@@ -3358,6 +3416,31 @@ error:
 	return -EINVAL;
 }
 
+static void do_auto_connect(struct connman_service *service,
+	enum connman_service_connect_reason reason)
+{
+	/*
+	 * CONNMAN_SERVICE_CONNECT_REASON_NONE must be ignored for VPNs. VPNs
+	 * always have reason CONNMAN_SERVICE_CONNECT_REASON_USER/AUTO.
+	 */
+	if (!service || (service->type == CONNMAN_SERVICE_TYPE_VPN &&
+				reason == CONNMAN_SERVICE_CONNECT_REASON_NONE))
+		return;
+
+	/*
+	 * Run service auto connect for other than VPN services. Afterwards
+	 * start also VPN auto connect process.
+	 */
+	if (service->type != CONNMAN_SERVICE_TYPE_VPN)
+		__connman_service_auto_connect(reason);
+	/* Only user interaction should get VPN connected in failure state. */
+	else if (service->state == CONNMAN_SERVICE_STATE_FAILURE &&
+				reason != CONNMAN_SERVICE_CONNECT_REASON_USER)
+		return;
+
+	vpn_auto_connect();
+}
+
 int __connman_service_reset_ipconfig(struct connman_service *service,
 		enum connman_ipconfig_type type, DBusMessageIter *array,
 		enum connman_service_state *new_state)
@@ -3422,7 +3505,7 @@ int __connman_service_reset_ipconfig(struct connman_service *service,
 		settings_changed(service, new_ipconfig);
 		address_updated(service, type);
 
-		__connman_service_auto_connect(CONNMAN_SERVICE_CONNECT_REASON_AUTO);
+		do_auto_connect(service, CONNMAN_SERVICE_CONNECT_REASON_AUTO);
 	}
 
 	DBG("err %d ipconfig %p type %d method %d state %s", err,
@@ -3454,6 +3537,9 @@ void __connman_service_wispr_start(struct connman_service *service,
 
 	__connman_wispr_start(service, type);
 }
+
+static void set_error(struct connman_service *service,
+					enum connman_service_error error);
 
 static DBusMessage *set_property(DBusConnection *conn,
 					DBusMessage *msg, void *user_data)
@@ -3492,17 +3578,26 @@ static DBusMessage *set_property(DBusConnection *conn,
 
 		dbus_message_iter_get_basic(&value, &autoconnect);
 
-		if (service->autoconnect == autoconnect)
-			return g_dbus_create_reply(msg, DBUS_TYPE_INVALID);
+		if (autoconnect && service->type == CONNMAN_SERVICE_TYPE_VPN) {
+			/*
+			 * Changing the autoconnect flag on VPN to "on" should
+			 * have the same effect as user connecting the VPN =
+			 * clear previous error and change state to idle.
+			 */
+			set_error(service, CONNMAN_SERVICE_ERROR_UNKNOWN);
 
-		service->autoconnect = autoconnect;
+			if (service->state == CONNMAN_SERVICE_STATE_FAILURE) {
+				service->state = CONNMAN_SERVICE_STATE_IDLE;
+				state_changed(service);
+			}
+		}
 
-		autoconnect_changed(service);
-
-		if (autoconnect)
-			__connman_service_auto_connect(CONNMAN_SERVICE_CONNECT_REASON_AUTO);
-
-		service_save(service);
+		if (connman_service_set_autoconnect(service, autoconnect)) {
+			service_save(service);
+			if (autoconnect)
+				do_auto_connect(service,
+					CONNMAN_SERVICE_CONNECT_REASON_AUTO);
+		}
 	} else if (g_str_equal(name, "Nameservers.Configuration")) {
 		DBusMessageIter entry;
 		GString *str;
@@ -3826,9 +3921,9 @@ static void service_complete(struct connman_service *service)
 	reply_pending(service, EIO);
 
 	if (service->connect_reason != CONNMAN_SERVICE_CONNECT_REASON_USER)
-		__connman_service_auto_connect(service->connect_reason);
+		do_auto_connect(service, service->connect_reason);
 
-	g_get_current_time(&service->modified);
+	gettimeofday(&service->modified, NULL);
 	service_save(service);
 }
 
@@ -4046,6 +4141,8 @@ static bool autoconnect_already_connecting(struct connman_service *service,
 	return false;
 }
 
+static int service_indicate_state(struct connman_service *service);
+
 static bool auto_connect_service(GList *services,
 				enum connman_service_connect_reason reason,
 				bool preferred)
@@ -4104,7 +4201,8 @@ static bool auto_connect_service(GList *services,
 		DBG("service %p %s %s", service, service->name,
 			(preferred) ? "preferred" : reason2string(reason));
 
-		__connman_service_connect(service, reason);
+		if (__connman_service_connect(service, reason) == 0)
+			service_indicate_state(service);
 
 		if (autoconnect_no_session_active(service))
 			return true;
@@ -4155,8 +4253,28 @@ void __connman_service_auto_connect(enum connman_service_connect_reason reason)
 static gboolean run_vpn_auto_connect(gpointer data) {
 	GList *list;
 	bool need_split = false;
+	bool autoconnectable_vpns = false;
+	int attempts = 0;
+	int timeout = VPN_AUTOCONNECT_TIMEOUT_DEFAULT;
+	struct connman_service *def_service;
 
-	vpn_autoconnect_id = 0;
+	attempts = GPOINTER_TO_INT(data);
+	def_service = connman_service_get_default();
+
+	/*
+	 * Stop auto connecting VPN if there is no transport service or the
+	 * transport service is not connected or if the  current default service
+	 * is a connected VPN (in ready state).
+	 */
+	if (!def_service || !is_connected(def_service->state) ||
+		(def_service->type == CONNMAN_SERVICE_TYPE_VPN &&
+		is_connected(def_service->state))) {
+
+		DBG("stopped, default service %s connected %d",
+			def_service ? def_service->identifier : "NULL",
+			def_service ? is_connected(def_service->state) : -1);
+		goto out;
+	}
 
 	for (list = service_list; list; list = list->next) {
 		struct connman_service *service = list->data;
@@ -4166,9 +4284,17 @@ static gboolean run_vpn_auto_connect(gpointer data) {
 			continue;
 
 		if (is_connected(service->state) ||
-				is_connecting(service->state)) {
+					is_connecting(service->state)) {
 			if (!service->do_split_routing)
 				need_split = true;
+
+			/*
+			 * If the service is connecting it must be accounted
+			 * for to keep the autoconnection in main loop.
+			 */
+			if (is_connecting(service->state))
+				autoconnectable_vpns = true;
+
 			continue;
 		}
 
@@ -4186,20 +4312,64 @@ static gboolean run_vpn_auto_connect(gpointer data) {
 
 		res = __connman_service_connect(service,
 				CONNMAN_SERVICE_CONNECT_REASON_AUTO);
-		if (res < 0 && res != -EINPROGRESS)
+
+		switch (res) {
+		case 0:
+			service_indicate_state(service);
+			/* fall through */
+		case -EINPROGRESS:
+			autoconnectable_vpns = true;
+			break;
+		default:
 			continue;
+		}
 
 		if (!service->do_split_routing)
 			need_split = true;
 	}
 
-	return FALSE;
+	/* Stop if there is no VPN to automatically connect.*/
+	if (!autoconnectable_vpns) {
+		DBG("stopping, no autoconnectable VPNs found");
+		goto out;
+	}
+
+	/* Increase the attempt count up to the threshold.*/
+	if (attempts < VPN_AUTOCONNECT_TIMEOUT_ATTEMPTS_THRESHOLD)
+		attempts++;
+
+	/*
+	 * Timeout increases with 1s after VPN_AUTOCONNECT_TIMEOUT_STEP amount
+	 * of attempts made. After VPN_AUTOCONNECT_TIMEOUT_ATTEMPTS_THRESHOLD is
+	 * reached the delay does not increase.
+	 */
+	timeout = timeout + (int)(attempts / VPN_AUTOCONNECT_TIMEOUT_STEP);
+
+	/* Re add this to main loop */
+	vpn_autoconnect_id =
+		g_timeout_add_seconds(timeout, run_vpn_auto_connect,
+			GINT_TO_POINTER(attempts));
+
+	DBG("re-added to main loop, next VPN autoconnect in %d seconds (#%d)",
+		timeout, attempts);
+
+	return G_SOURCE_REMOVE;
+
+out:
+	vpn_autoconnect_id = 0;
+	return G_SOURCE_REMOVE;
 }
 
 static void vpn_auto_connect(void)
 {
-	if (vpn_autoconnect_id)
-		return;
+	/*
+	 * Remove existing autoconnect from main loop to reset the attempt
+	 * counter in order to get VPN connected when there is a network change.
+	 */
+	if (vpn_autoconnect_id) {
+		if (!g_source_remove(vpn_autoconnect_id))
+			return;
+	}
 
 	vpn_autoconnect_id =
 		g_idle_add(run_vpn_auto_connect, NULL);
@@ -4302,7 +4472,7 @@ static gboolean connect_timeout(gpointer user_data)
 	if (autoconnect &&
 			service->connect_reason !=
 				CONNMAN_SERVICE_CONNECT_REASON_USER)
-		__connman_service_auto_connect(CONNMAN_SERVICE_CONNECT_REASON_AUTO);
+		do_auto_connect(service, CONNMAN_SERVICE_CONNECT_REASON_AUTO);
 
 	return FALSE;
 }
@@ -4681,7 +4851,7 @@ static DBusMessage *move_service(DBusConnection *conn,
 		}
 	}
 
-	g_get_current_time(&service->modified);
+	gettimeofday(&service->modified, NULL);
 	service_save(service);
 	service_save(target);
 
@@ -5486,12 +5656,15 @@ static void request_input_cb(struct connman_service *service,
 				__connman_service_return_error(service,
 							ECONNABORTED,
 							user_data);
-			goto done;
 		} else {
+			err = -ETIMEDOUT;
+
 			if (service->hidden)
 				__connman_service_return_error(service,
 							ETIMEDOUT, user_data);
 		}
+
+		goto done;
 	}
 
 	if (service->hidden && name_len > 0 && name_len <= 32) {
@@ -5760,7 +5933,7 @@ static int service_indicate_state(struct connman_service *service)
 							"WiFi.UseWPS", false);
 		}
 
-		g_get_current_time(&service->modified);
+		gettimeofday(&service->modified, NULL);
 		service_save(service);
 
 		domain_changed(service);
@@ -5806,7 +5979,7 @@ static int service_indicate_state(struct connman_service *service)
 		 */
 		downgrade_connected_services();
 
-		__connman_service_auto_connect(CONNMAN_SERVICE_CONNECT_REASON_AUTO);
+		do_auto_connect(service, CONNMAN_SERVICE_CONNECT_REASON_AUTO);
 		break;
 
 	case CONNMAN_SERVICE_STATE_FAILURE:
@@ -5927,34 +6100,6 @@ enum connman_service_state __connman_service_ipconfig_get_state(
 	return CONNMAN_SERVICE_STATE_UNKNOWN;
 }
 
-static void check_proxy_setup(struct connman_service *service)
-{
-	/*
-	 * We start WPAD if we haven't got a PAC URL from DHCP and
-	 * if our proxy manual configuration is either empty or set
-	 * to AUTO with an empty URL.
-	 */
-
-	if (service->proxy != CONNMAN_SERVICE_PROXY_METHOD_UNKNOWN)
-		goto done;
-
-	if (service->proxy_config != CONNMAN_SERVICE_PROXY_METHOD_UNKNOWN &&
-		(service->proxy_config != CONNMAN_SERVICE_PROXY_METHOD_AUTO ||
-			service->pac))
-		goto done;
-
-	if (__connman_wpad_start(service) < 0) {
-		service->proxy = CONNMAN_SERVICE_PROXY_METHOD_DIRECT;
-		__connman_notifier_proxy_changed(service);
-		goto done;
-	}
-
-	return;
-
-done:
-	__connman_service_wispr_start(service, CONNMAN_IPCONFIG_TYPE_IPV4);
-}
-
 /*
  * How many networks are connected at the same time. If more than 1,
  * then set the rp_filter setting properly (loose mode routing) so that network
@@ -6068,16 +6213,6 @@ int __connman_service_online_check_failed(struct connman_service *service,
 	return EAGAIN;
 }
 
-static void cancel_online_check(struct connman_service *service)
-{
-	if (service->online_timeout == 0)
-		return;
-
-	g_source_remove(service->online_timeout);
-	service->online_timeout = 0;
-	connman_service_unref(service);
-}
-
 int __connman_service_ipconfig_indicate_state(struct connman_service *service,
 					enum connman_service_state new_state,
 					enum connman_ipconfig_type type)
@@ -6147,15 +6282,6 @@ int __connman_service_ipconfig_indicate_state(struct connman_service *service,
 	case CONNMAN_SERVICE_STATE_CONFIGURATION:
 		break;
 	case CONNMAN_SERVICE_STATE_READY:
-		if (connman_setting_get_bool("EnableOnlineCheck"))
-			if (type == CONNMAN_IPCONFIG_TYPE_IPV4) {
-				check_proxy_setup(service);
-			} else {
-				__connman_service_wispr_start(service, type);
-			}
-		else
-			connman_info("Online check disabled. "
-				"Default service remains in READY state.");
 		if (type == CONNMAN_IPCONFIG_TYPE_IPV4)
 			service_rp_filter(service, true);
 		set_mdns(service, service->mdns_config);
@@ -7204,7 +7330,8 @@ struct connman_service * __connman_service_create_from_network(struct connman_ne
 			case CONNMAN_SERVICE_TYPE_VPN:
 			case CONNMAN_SERVICE_TYPE_WIFI:
 			case CONNMAN_SERVICE_TYPE_CELLULAR:
-				__connman_service_auto_connect(CONNMAN_SERVICE_CONNECT_REASON_AUTO);
+				do_auto_connect(service,
+					CONNMAN_SERVICE_CONNECT_REASON_AUTO);
 				break;
 			}
 		}

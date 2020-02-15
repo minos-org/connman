@@ -176,17 +176,24 @@ int __connman_provider_connect(struct connman_provider *provider,
 	else
 		return -EOPNOTSUPP;
 
-	if (err < 0) {
-		if (err != -EINPROGRESS)
-			return err;
+	switch (err) {
+	case 0:
+		return 0;
 
+	case -EINPROGRESS:
 		provider_indicate_state(provider,
 					CONNMAN_SERVICE_STATE_ASSOCIATION);
-
+		/* fall through */
+	/*
+	 * Return EINPROGRESS also for when there is an existing pending call.
+	 * The state should not be indicated again but the real state is
+	 * still in progress for the provider.
+	 */
+	case -EALREADY:
 		return -EINPROGRESS;
 	}
 
-	return 0;
+	return err;
 }
 
 int __connman_provider_remove_by_path(const char *path)
@@ -485,7 +492,7 @@ void connman_provider_set_index(struct connman_provider *provider, int index)
 
 		ipconfig = __connman_service_get_ip4config(service);
 		if (!ipconfig) {
-			DBG("Couldnt create ipconfig");
+			DBG("Couldn't create ipconfig");
 			goto done;
 		}
 	}
@@ -500,7 +507,7 @@ void connman_provider_set_index(struct connman_provider *provider, int index)
 
 		ipconfig = __connman_service_get_ip6config(service);
 		if (!ipconfig) {
-			DBG("Couldnt create ipconfig for IPv6");
+			DBG("Couldn't create ipconfig for IPv6");
 			goto done;
 		}
 	}
@@ -577,6 +584,17 @@ int connman_provider_set_nameservers(struct connman_provider *provider,
 						nameservers[i], false);
 
 	return 0;
+}
+
+void connman_provider_set_autoconnect(struct connman_provider *provider,
+								bool flag)
+{
+	if (!provider || !provider->vpn_service)
+		return;
+
+	/* Save VPN service if autoconnect value changes */
+	if (connman_service_set_autoconnect(provider->vpn_service, flag))
+		__connman_service_save(provider->vpn_service);
 }
 
 static void unregister_provider(gpointer data)

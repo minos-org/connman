@@ -1116,6 +1116,67 @@ bool connman_inet_compare_subnet(int index, const char *host)
 	return ((if_addr & netmask_addr) == (host_addr & netmask_addr));
 }
 
+static bool mem_mask_equal(const void *a, const void *b,
+					const void *mask, size_t n)
+{
+	const unsigned char *addr1 = a;
+	const unsigned char *addr2 = b;
+	const unsigned char *bitmask = mask;
+	size_t i;
+
+	for (i = 0; i < n; i++) {
+		if ((addr1[i] ^ addr2[i]) & bitmask[i])
+			return false;
+	}
+
+	return true;
+}
+
+bool connman_inet_compare_ipv6_subnet(int index, const char *host)
+{
+	struct ifaddrs *ifaddr, *ifa;
+	bool rv = false;
+	char name[IF_NAMESIZE];
+	struct in6_addr haddr;
+
+	if (inet_pton(AF_INET6, host, &haddr) <= 0)
+		return false;
+
+	if (!if_indextoname(index, name))
+		return false;
+
+	DBG("index %d interface %s", index, name);
+
+	if (getifaddrs(&ifaddr) < 0) {
+		DBG("Cannot get addresses err %d/%s", errno, strerror(errno));
+		return false;
+	}
+
+	for (ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
+		struct sockaddr_in6 *iaddr;
+		struct sockaddr_in6 *imask;
+
+		if (!ifa->ifa_addr)
+			continue;
+
+		if (strncmp(ifa->ifa_name, name, IF_NAMESIZE) != 0 ||
+					ifa->ifa_addr->sa_family != AF_INET6)
+			continue;
+
+		iaddr = (struct sockaddr_in6 *)ifa->ifa_addr;
+		imask = (struct sockaddr_in6 *)ifa->ifa_netmask;
+
+		rv = mem_mask_equal(&iaddr->sin6_addr, &haddr,
+					&imask->sin6_addr,
+					sizeof(haddr));
+		goto out;
+	}
+
+out:
+	freeifaddrs(ifaddr);
+	return rv;
+}
+
 int connman_inet_remove_from_bridge(int index, const char *bridge)
 {
 	struct ifreq ifr;
@@ -2563,11 +2624,21 @@ int __connman_inet_get_route(const char *dest_address,
 	rth->req.u.r.rt.rtm_scope = 0;
 	rth->req.u.r.rt.rtm_type = 0;
 	rth->req.u.r.rt.rtm_src_len = 0;
-	rth->req.u.r.rt.rtm_dst_len = rp->ai_addrlen << 3;
 	rth->req.u.r.rt.rtm_tos = 0;
 
-	__connman_inet_rtnl_addattr_l(&rth->req.n, sizeof(rth->req), RTA_DST,
-				&rp->ai_addr, rp->ai_addrlen);
+	if (rp->ai_family == AF_INET) {
+		struct sockaddr_in *sin = (struct sockaddr_in *)rp->ai_addr;
+
+		rth->req.u.r.rt.rtm_dst_len = 32;
+		__connman_inet_rtnl_addattr_l(&rth->req.n, sizeof(rth->req),
+			RTA_DST, &sin->sin_addr, sizeof(sin->sin_addr));
+	} else if (rp->ai_family == AF_INET6) {
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)rp->ai_addr;
+
+		rth->req.u.r.rt.rtm_dst_len = 128;
+		__connman_inet_rtnl_addattr_l(&rth->req.n, sizeof(rth->req),
+			RTA_DST, &sin6->sin6_addr, sizeof(sin6->sin6_addr));
+	}
 
 	freeaddrinfo(rp);
 
@@ -3165,7 +3236,7 @@ static int get_nfs_server_ip(const char *cmdline_file, const char *pnp_file,
 	if (cmdline[len - 1] == '\n')
 		cmdline[--len] = '\0';
 
-	/* split in arguments (seperated by space) */
+	/* split in arguments (separated by space) */
 	args = g_strsplit(cmdline, " ", 0);
 	if (!args) {
 		connman_error("%s: Cannot split cmdline \"%s\"\n", __func__,
@@ -3368,7 +3439,7 @@ char **__connman_inet_get_pnp_nameservers(const char *pnp_file)
 	}
 
 	/*
-	 * Perform two passes to retreive a char ** array of
+	 * Perform two passes to retrieve a char ** array of
 	 * nameservers that are not 0.0.0.0
 	 *
 	 * The first pass counts them, the second fills in the
