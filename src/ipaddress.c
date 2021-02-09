@@ -70,8 +70,17 @@ struct connman_ipaddress *connman_ipaddress_alloc(int family)
 	ipaddress->peer = NULL;
 	ipaddress->broadcast = NULL;
 	ipaddress->gateway = NULL;
+	ipaddress->is_p2p = false;
 
 	return ipaddress;
+}
+
+void connman_ipaddress_set_p2p(struct connman_ipaddress *ipaddress, bool value)
+{
+	if (!ipaddress)
+		return;
+
+	ipaddress->is_p2p = value;
 }
 
 void connman_ipaddress_free(struct connman_ipaddress *ipaddress)
@@ -95,7 +104,7 @@ static bool check_ipv6_address(const char *address)
 		return false;
 
 	err = inet_pton(AF_INET6, address, buf);
-	if (err > 0)
+	if (err == 1)
 		return true;
 
 	return false;
@@ -223,6 +232,7 @@ connman_ipaddress_copy(struct connman_ipaddress *ipaddress)
 	copy->peer = g_strdup(ipaddress->peer);
 	copy->broadcast = g_strdup(ipaddress->broadcast);
 	copy->gateway = g_strdup(ipaddress->gateway);
+	copy->is_p2p = ipaddress->is_p2p;
 
 	return copy;
 }

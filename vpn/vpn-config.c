@@ -229,7 +229,7 @@ static int load_provider(GKeyFile *keyfile, const char *group,
 
 	host = get_string(config_provider, "Host");
 	domain = get_string(config_provider, "Domain");
-	if (host && domain) {
+	if (host) {
 		char *id = __vpn_provider_create_identifier(host, domain);
 
 		struct vpn_provider *provider;
@@ -252,7 +252,7 @@ static int load_provider(GKeyFile *keyfile, const char *group,
 
 		DBG("provider identifier %s", id);
 	} else {
-		DBG("invalid values host %s domain %s", host, domain);
+		DBG("invalid configuration: no host specified");
 		err = -EINVAL;
 		goto err;
 	}
@@ -579,4 +579,19 @@ char **__vpn_config_get_string_list(GKeyFile *key_file,
 	}
 
 	return strlist;
+}
+
+bool __vpn_config_get_boolean(GKeyFile *key_file, const char *group_name,
+			const char *key, bool default_value)
+{
+	GError *error = NULL;
+	bool val;
+
+	val = g_key_file_get_boolean(key_file, group_name, key, &error);
+	if (error) {
+		g_error_free(error);
+		return default_value;
+	}
+
+	return val;
 }

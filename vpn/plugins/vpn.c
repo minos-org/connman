@@ -65,7 +65,7 @@ struct vpn_data {
 struct vpn_driver_data {
 	const char *name;
 	const char *program;
-	struct vpn_driver *vpn_driver;
+	const struct vpn_driver *vpn_driver;
 	struct vpn_provider_driver provider_driver;
 };
 
@@ -421,61 +421,26 @@ exist_err:
 	return ret;
 }
 
-static gboolean is_numeric(const char *str)
+static gid_t get_gid(const char *group_name)
 {
-	gint i;
-
-	if(!str || !(*str))
-		return false;
-
-	for(i = 0; str[i] ; i++) {
-		if(!g_ascii_isdigit(str[i]))
-			return false;
-	}
-
-	return true;
-}
-
-static gint get_gid(const char *group_name)
-{
-	gint gid = -1;
 	struct group *grp;
 
-	if(!group_name || !(*group_name))
-		return gid;
-
-	if (is_numeric(group_name)) {
-		gid_t group_id = (gid_t)g_ascii_strtoull(group_name, NULL, 10);
-		grp = getgrgid(group_id);
-	} else {
-		grp = getgrnam(group_name);
-	}
-
+	grp = vpn_util_get_group(group_name);
 	if (grp)
-		gid = grp->gr_gid;
+		return grp->gr_gid;
 
-	return gid;
+	return -1;
 }
 
-static gint get_uid(const char *user_name)
+static uid_t get_uid(const char *user_name)
 {
-	gint uid = -1;
 	struct passwd *pw;
 
-	if(!user_name || !(*user_name))
-		return uid;
-
-	if (is_numeric(user_name)) {
-		uid_t user_id = (uid_t)g_ascii_strtoull(user_name, NULL, 10);
-		pw = getpwuid(user_id);
-	} else {
-		pw = getpwnam(user_name);
-	}
-
+	pw = vpn_util_get_passwd(user_name);
 	if (pw)
-		uid = pw->pw_uid;
+		return pw->pw_uid;
 
-	return uid;
+	return -1;
 }
 
 static gint get_supplementary_gids(gchar **groups, gid_t **gid_list)
@@ -508,8 +473,8 @@ static gint get_supplementary_gids(gchar **groups, gid_t **gid_list)
 static void vpn_task_setup(gpointer user_data)
 {
 	struct vpn_plugin_data *data;
-	gint uid;
-	gint gid;
+	uid_t uid;
+	gid_t gid;
 	gid_t *gid_list = NULL;
 	size_t gid_list_size;
 	const gchar *user;
@@ -632,7 +597,7 @@ static int vpn_connect(struct vpn_provider *provider,
 			vpn_driver_data->vpn_driver->flags & VPN_FLAG_NO_DAEMON) {
 
 		ret = vpn_driver_data->vpn_driver->connect(provider,
-						NULL, NULL, NULL, NULL, NULL);
+					NULL, NULL, cb, dbus_sender, user_data);
 		if (ret) {
 			stop_vpn(provider);
 			goto exist_err;
@@ -812,7 +777,7 @@ static int vpn_route_env_parse(struct vpn_provider *provider, const char *key,
 	return 0;
 }
 
-int vpn_register(const char *name, struct vpn_driver *vpn_driver,
+int vpn_register(const char *name, const struct vpn_driver *vpn_driver,
 			const char *program)
 {
 	struct vpn_driver_data *data;

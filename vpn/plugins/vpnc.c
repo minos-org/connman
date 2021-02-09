@@ -30,6 +30,10 @@
 #include <stdio.h>
 #include <net/if.h>
 #include <linux/if_tun.h>
+#include <sys/types.h>
+#include <pwd.h>
+#include <grp.h>
+#include <fcntl.h>
 
 #include <glib.h>
 
@@ -50,6 +54,7 @@
 #include "../vpn.h"
 
 #define ARRAY_SIZE(a) (sizeof(a)/sizeof(a[0]))
+#define PID_PATH_ROOT "/var/run/user"
 
 enum {
 	OPT_STRING = 1,
@@ -240,6 +245,7 @@ static int vc_notify(DBusMessage *msg, struct vpn_provider *provider)
 	}
 
 	connman_ipaddress_set_ipv4(ipaddress, address, netmask, gateway);
+	connman_ipaddress_set_p2p(ipaddress, true);
 	vpn_provider_set_ipaddress(provider, ipaddress);
 
 	g_free(address);
@@ -430,14 +436,49 @@ static gboolean io_channel_cb(GIOChannel *source, GIOCondition condition,
 	return G_SOURCE_CONTINUE;
 }
 
+static char *create_pid_path(const char *user, const char *group)
+{
+	struct passwd *pwd;
+	struct group *grp;
+	char *uid_str;
+	char *pid_path = NULL;
+	int mode = S_IRWXU|S_IRWXG;
+	gid_t gid;
+
+	if (!user || !*user)
+		return NULL;
+
+	if (vpn_settings_is_system_user(user))
+		return NULL;
+
+	pwd = vpn_util_get_passwd(user);
+	uid_str = g_strdup_printf("%d", pwd->pw_uid);
+
+	grp = vpn_util_get_group(group);
+	gid = grp ? grp->gr_gid : pwd->pw_gid;
+
+	pid_path = g_build_filename(PID_PATH_ROOT, uid_str, "vpnc", "pid",
+				NULL);
+	if (vpn_util_create_path(pid_path, pwd->pw_uid, gid, mode)) {
+		g_free(pid_path);
+		pid_path = NULL;
+	}
+
+	g_free(uid_str);
+
+	return pid_path;
+}
+
 static int run_connect(struct vc_private_data *data)
 {
 	struct vpn_provider *provider;
 	struct connman_task *task;
+	struct vpn_plugin_data *plugin_data;
 	const char *credentials[] = {"VPNC.IPSec.Secret", "VPNC.Xauth.Username",
 				"VPNC.Xauth.Password", NULL};
 	const char *if_name;
 	const char *option;
+	char *pid_path;
 	int err;
 	int fd_in;
 	int fd_err;
@@ -471,6 +512,20 @@ static int run_connect(struct vc_private_data *data)
 		 * Default to tun for backwards compatibility.
 		 */
 		connman_task_add_argument(task, "--ifmode", "tun");
+	}
+
+	plugin_data = vpn_settings_get_vpn_plugin_config("vpnc");
+
+	option = vpn_settings_get_binary_user(plugin_data);
+	if (option) {
+		pid_path = create_pid_path(option,
+					vpn_settings_get_binary_group(
+						plugin_data));
+		if (pid_path)
+			connman_task_add_argument(task, "--pid-file",
+								pid_path);
+
+		g_free(pid_path);
 	}
 
 	connman_task_add_argument(task, "--script", SCRIPTDIR "/vpn-script");
@@ -619,8 +674,10 @@ static void request_input_credentials_reply(DBusMessage *reply, void *user_data)
 
 	DBG("provider %p", data->provider);
 
-	if (!reply)
+	if (!reply) {
+		err = ENOENT;
 		goto err;
+	}
 
 	err = vpn_agent_check_and_process_reply_error(reply, data->provider,
 				data->task, data->cb, data->user_data);
@@ -631,8 +688,10 @@ static void request_input_credentials_reply(DBusMessage *reply, void *user_data)
 		return;
 	}
 
-	if (!vpn_agent_check_reply_has_dict(reply))
+	if (!vpn_agent_check_reply_has_dict(reply)) {
+		err = ENOENT;
 		goto err;
+	}
 
 	dbus_message_iter_init(reply, &iter);
 	dbus_message_iter_recurse(&iter, &dict);
@@ -687,17 +746,22 @@ static void request_input_credentials_reply(DBusMessage *reply, void *user_data)
 		dbus_message_iter_next(&dict);
 	}
 
-	if (!secret || !username || !password)
+	if (!secret || !username || !password) {
+		vpn_provider_indicate_error(data->provider,
+					VPN_PROVIDER_ERROR_AUTH_FAILED);
+		err = EACCES;
 		goto err;
+	}
 
-	err = run_connect(data);
-	if (err != -EINPROGRESS)
+	/* vpn_provider.c:connect_cb() expects positive errors */
+	err = -run_connect(data);
+	if (err != EINPROGRESS)
 		goto err;
 
 	return;
 
 err:
-	vc_connect_done(data, EACCES);
+	vc_connect_done(data, err);
 }
 
 static int request_input_credentials(struct vc_private_data *data,

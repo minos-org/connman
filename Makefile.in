@@ -746,7 +746,8 @@ am__vpn_connman_vpnd_SOURCES_DIST = src/shared/mnlg.h \
 	vpn/vpn-provider.h vpn/vpn-rtnl.h vpn/vpn-ipconfig.c \
 	src/inet.c vpn/vpn-rtnl.c src/dbus.c src/storage.c \
 	src/ipaddress.c src/agent.c vpn/vpn-agent.c vpn/vpn-agent.h \
-	src/inotify.c vpn/vpn-config.c vpn/vpn-settings.c
+	src/inotify.c vpn/vpn-config.c vpn/vpn-settings.c \
+	vpn/vpn-util.c
 @VPN_TRUE@@WIREGUARD_BUILTIN_TRUE@@WIREGUARD_TRUE@am__objects_37 = src/shared/vpn_connman_vpnd-mnlg.$(OBJEXT) \
 @VPN_TRUE@@WIREGUARD_BUILTIN_TRUE@@WIREGUARD_TRUE@	vpn/plugins/connman_vpnd-libwireguard.$(OBJEXT) \
 @VPN_TRUE@@WIREGUARD_BUILTIN_TRUE@@WIREGUARD_TRUE@	vpn/plugins/connman_vpnd-wireguard.$(OBJEXT)
@@ -794,7 +795,8 @@ am__objects_48 = gweb/vpn_connman_vpnd-gweb.$(OBJEXT) \
 @VPN_TRUE@	vpn/connman_vpnd-vpn-agent.$(OBJEXT) \
 @VPN_TRUE@	src/vpn_connman_vpnd-inotify.$(OBJEXT) \
 @VPN_TRUE@	vpn/connman_vpnd-vpn-config.$(OBJEXT) \
-@VPN_TRUE@	vpn/connman_vpnd-vpn-settings.$(OBJEXT)
+@VPN_TRUE@	vpn/connman_vpnd-vpn-settings.$(OBJEXT) \
+@VPN_TRUE@	vpn/connman_vpnd-vpn-util.$(OBJEXT)
 vpn_connman_vpnd_OBJECTS = $(am_vpn_connman_vpnd_OBJECTS)
 @VPN_TRUE@am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1)
 @VPN_TRUE@vpn_connman_vpnd_DEPENDENCIES = gdbus/libgdbus-internal.la \
@@ -973,6 +975,7 @@ am__depfiles_remade = client/$(DEPDIR)/agent.Po \
 	vpn/$(DEPDIR)/connman_vpnd-vpn-provider.Po \
 	vpn/$(DEPDIR)/connman_vpnd-vpn-rtnl.Po \
 	vpn/$(DEPDIR)/connman_vpnd-vpn-settings.Po \
+	vpn/$(DEPDIR)/connman_vpnd-vpn-util.Po \
 	vpn/plugins/$(DEPDIR)/connman_vpnd-l2tp.Po \
 	vpn/plugins/$(DEPDIR)/connman_vpnd-libwireguard.Po \
 	vpn/plugins/$(DEPDIR)/connman_vpnd-openconnect.Po \
@@ -1572,7 +1575,7 @@ src_connmand_wait_online_LDADD = gdbus/libgdbus-internal.la \
 @VPN_TRUE@			vpn/vpn-ipconfig.c src/inet.c vpn/vpn-rtnl.c \
 @VPN_TRUE@			src/dbus.c src/storage.c src/ipaddress.c src/agent.c \
 @VPN_TRUE@			vpn/vpn-agent.c vpn/vpn-agent.h src/inotify.c \
-@VPN_TRUE@			vpn/vpn-config.c vpn/vpn-settings.c
+@VPN_TRUE@			vpn/vpn-config.c vpn/vpn-settings.c vpn/vpn-util.c
 
 @VPN_TRUE@vpn_connman_vpnd_LDADD = gdbus/libgdbus-internal.la $(builtin_vpn_libadd) \
 @VPN_TRUE@				@GLIB_LIBS@ @DBUS_LIBS@ @GNUTLS_LIBS@ \
@@ -2786,6 +2789,8 @@ vpn/connman_vpnd-vpn-config.$(OBJEXT): vpn/$(am__dirstamp) \
 	vpn/$(DEPDIR)/$(am__dirstamp)
 vpn/connman_vpnd-vpn-settings.$(OBJEXT): vpn/$(am__dirstamp) \
 	vpn/$(DEPDIR)/$(am__dirstamp)
+vpn/connman_vpnd-vpn-util.$(OBJEXT): vpn/$(am__dirstamp) \
+	vpn/$(DEPDIR)/$(am__dirstamp)
 
 vpn/connman-vpnd$(EXEEXT): $(vpn_connman_vpnd_OBJECTS) $(vpn_connman_vpnd_DEPENDENCIES) $(EXTRA_vpn_connman_vpnd_DEPENDENCIES) vpn/$(am__dirstamp)
 	@rm -f vpn/connman-vpnd$(EXEEXT)
@@ -3030,6 +3035,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@vpn/$(DEPDIR)/connman_vpnd-vpn-provider.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@vpn/$(DEPDIR)/connman_vpnd-vpn-rtnl.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@vpn/$(DEPDIR)/connman_vpnd-vpn-settings.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@vpn/$(DEPDIR)/connman_vpnd-vpn-util.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@vpn/plugins/$(DEPDIR)/connman_vpnd-l2tp.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@vpn/plugins/$(DEPDIR)/connman_vpnd-libwireguard.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@vpn/plugins/$(DEPDIR)/connman_vpnd-openconnect.Po@am__quote@ # am--include-marker
@@ -4924,6 +4930,20 @@ vpn/connman_vpnd-vpn-settings.obj: vpn/vpn-settings.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(vpn_connman_vpnd_CFLAGS) $(CFLAGS) -c -o vpn/connman_vpnd-vpn-settings.obj `if test -f 'vpn/vpn-settings.c'; then $(CYGPATH_W) 'vpn/vpn-settings.c'; else $(CYGPATH_W) '$(srcdir)/vpn/vpn-settings.c'; fi`
 
+vpn/connman_vpnd-vpn-util.o: vpn/vpn-util.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(vpn_connman_vpnd_CFLAGS) $(CFLAGS) -MT vpn/connman_vpnd-vpn-util.o -MD -MP -MF vpn/$(DEPDIR)/connman_vpnd-vpn-util.Tpo -c -o vpn/connman_vpnd-vpn-util.o `test -f 'vpn/vpn-util.c' || echo '$(srcdir)/'`vpn/vpn-util.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) vpn/$(DEPDIR)/connman_vpnd-vpn-util.Tpo vpn/$(DEPDIR)/connman_vpnd-vpn-util.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='vpn/vpn-util.c' object='vpn/connman_vpnd-vpn-util.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(vpn_connman_vpnd_CFLAGS) $(CFLAGS) -c -o vpn/connman_vpnd-vpn-util.o `test -f 'vpn/vpn-util.c' || echo '$(srcdir)/'`vpn/vpn-util.c
+
+vpn/connman_vpnd-vpn-util.obj: vpn/vpn-util.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(vpn_connman_vpnd_CFLAGS) $(CFLAGS) -MT vpn/connman_vpnd-vpn-util.obj -MD -MP -MF vpn/$(DEPDIR)/connman_vpnd-vpn-util.Tpo -c -o vpn/connman_vpnd-vpn-util.obj `if test -f 'vpn/vpn-util.c'; then $(CYGPATH_W) 'vpn/vpn-util.c'; else $(CYGPATH_W) '$(srcdir)/vpn/vpn-util.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) vpn/$(DEPDIR)/connman_vpnd-vpn-util.Tpo vpn/$(DEPDIR)/connman_vpnd-vpn-util.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='vpn/vpn-util.c' object='vpn/connman_vpnd-vpn-util.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(vpn_connman_vpnd_CFLAGS) $(CFLAGS) -c -o vpn/connman_vpnd-vpn-util.obj `if test -f 'vpn/vpn-util.c'; then $(CYGPATH_W) 'vpn/vpn-util.c'; else $(CYGPATH_W) '$(srcdir)/vpn/vpn-util.c'; fi`
+
 mostlyclean-libtool:
 	-rm -f *.lo
 
@@ -5920,6 +5940,7 @@ distclean: distclean-am
 	-rm -f vpn/$(DEPDIR)/connman_vpnd-vpn-provider.Po
 	-rm -f vpn/$(DEPDIR)/connman_vpnd-vpn-rtnl.Po
 	-rm -f vpn/$(DEPDIR)/connman_vpnd-vpn-settings.Po
+	-rm -f vpn/$(DEPDIR)/connman_vpnd-vpn-util.Po
 	-rm -f vpn/plugins/$(DEPDIR)/connman_vpnd-l2tp.Po
 	-rm -f vpn/plugins/$(DEPDIR)/connman_vpnd-libwireguard.Po
 	-rm -f vpn/plugins/$(DEPDIR)/connman_vpnd-openconnect.Po
@@ -6169,6 +6190,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f vpn/$(DEPDIR)/connman_vpnd-vpn-provider.Po
 	-rm -f vpn/$(DEPDIR)/connman_vpnd-vpn-rtnl.Po
 	-rm -f vpn/$(DEPDIR)/connman_vpnd-vpn-settings.Po
+	-rm -f vpn/$(DEPDIR)/connman_vpnd-vpn-util.Po
 	-rm -f vpn/plugins/$(DEPDIR)/connman_vpnd-l2tp.Po
 	-rm -f vpn/plugins/$(DEPDIR)/connman_vpnd-libwireguard.Po
 	-rm -f vpn/plugins/$(DEPDIR)/connman_vpnd-openconnect.Po
